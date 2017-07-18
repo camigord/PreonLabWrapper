@@ -75,3 +75,28 @@ def orthogonal(v):
     Return a 90 degree clockwise rotation of the vector v.
     """
     return np.array([-v[1], v[0]])
+
+def get_vertices(pos, angle, size):
+    '''
+    Given position, rotation angle and size of a rectangle, returns the coordinates of the vertices
+    '''
+    theta = 360.0 - angle  # Angle is considered to be measured counterclockwise (but it is defined clockwise in preonlab)
+    # First get vertices without rotation (clockwise starting top left)
+    diameter, height = size[0], size[1]         # We use 'diameter' because we are simulating cups in preonlab
+    posx, posy = pos[0], pos[1]
+    temp_vertices = []
+    temp_vertices.append((posx - diameter/2.0, posy + height/2.0))   # Top left
+    temp_vertices.append((posx + diameter/2.0, posy + height/2.0))   # Top right
+    temp_vertices.append((posx + diameter/2.0, posy - height/2.0))   # Buttom right
+    temp_vertices.append((posx - diameter/2.0, posy - height/2.0))   # Buttom left
+
+    # Rotate each point according to angle
+    # From theory at (https://math.stackexchange.com/questions/270194/how-to-find-the-vertices-angle-after-rotation)
+    vertices = []
+
+    for v in temp_vertices:
+        x = np.round((v[0]-posx)*math.cos(math.radians(theta)) - (v[1]-posy)*math.sin(math.radians(theta)) + posx,decimals=2)
+        y = np.round((v[0]-posx)*math.sin(math.radians(theta)) + (v[1]-posy)*math.cos(math.radians(theta)) + posy,decimals=2)
+        vertices.append((x,y))
+
+    return vertices

@@ -19,7 +19,7 @@ class PreonScene():
 
         # Get simulation parameters
         self.frame_rate = self.scene.__getitem__("simulation frame rate")
-        self.timestep_per_frame = 1 / self.frame_rate
+        self.timestep_per_frame = 1.0 / self.frame_rate
         #self.time_step = self.solver.__getitem__("timestep")
         #self.steps_per_frame = int((1/self.frame_rate) / self.time_step)
 
@@ -61,6 +61,16 @@ class PreonScene():
     def get_state(self):
         # Get and return current state
         return self.cup1_pos[0], self.cup1_pos[2], self.cup1_angles[1], self.vol_cup2, self.init_particles - self.remaining_particles
+
+    def execute_action(self, vel_x, vel_y, vel_theta):
+        # Calculates the next position of cup1 given velocities in cm/s, degree/s
+        posx = self.cup1_pos[0] + self.timestep_per_frame*vel_x
+        posy = self.cup1_pos[2] + self.timestep_per_frame*vel_y
+        theta = self.cup1_angles[1] + self.timestep_per_frame*vel_theta
+
+        # TODO: Need to keep history of the entire trajectorie or read it from simulation.
+        # TODO: Need placeholder for X, Y, and Theta.
+        # TODO: Need to have previously set keyframes when starting simulation and running 2 frames.
 
     '''
     def simulate_frame(self,num_frames=1):
