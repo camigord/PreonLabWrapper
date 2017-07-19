@@ -4,6 +4,7 @@ import numpy as np
 class PreonScene():
     def __init__(self, path):
         self.path = path
+        self.frames_per_action = 1              # How many frames to run before selecting a new action
 
         # Loading the scene
         preonpy.show_progressbar = False
@@ -23,8 +24,21 @@ class PreonScene():
         #self.time_step = self.solver.__getitem__("timestep")
         #self.steps_per_frame = int((1/self.frame_rate) / self.time_step)
 
+        # Set trajectorie points for the first 2 frames
+        init_angle = np.array(self.cup1.__getitem__("euler angles"))[1]
+        init_pos = np.array(self.cup1.__getitem__("position"))
+        init_frames = 2
+
+        self.trajectorie_angles = self._set_keyframes([self.cup1, self.sensor_cup1],[],0,init_angle,'euler angles theta')
+        self.trajectorie_posx = self._set_keyframes([self.cup1, self.sensor_cup1],[],0,init_pos[0],'position x')
+        self.trajectorie_posy = self._set_keyframes([self.cup1, self.sensor_cup1],[],0,init_pos[2],'position z')
+        self.trajectorie_angles = self._set_keyframes([self.cup1, self.sensor_cup1],self.trajectorie_angles,self.timestep_per_frame*init_frames,init_angle,'euler angles theta')
+        self.trajectorie_posx = self._set_keyframes([self.cup1, self.sensor_cup1],self.trajectorie_posx,self.timestep_per_frame*init_frames,init_pos[0],'position x')
+        self.trajectorie_posy = self._set_keyframes([self.cup1, self.sensor_cup1],self.trajectorie_posy,self.timestep_per_frame*init_frames,init_pos[2],'position z')
+
         # Run initial frames to allow liquid to settle down
-        self.scene.simulate(0, 2)
+        self.scene.simulate(0, init_frames)
+        self.current_frame = init_frames
         #self.simulate_frame(num_frames=2)
 
         # Get some values from the simulation
@@ -33,8 +47,6 @@ class PreonScene():
         self.cup2_size = np.round(np.array(self.cup2.__getitem__("scale"))*100,decimals=2)[[0,2]] # diameter and height in cm
 
         self.update_stats()
-
-        #return self.get_state(), self.get_info()
 
     def update_stats(self):
         self.cup1_pos = np.round(np.array(self.cup1.__getitem__("position"))  *100, decimals = 2) # x,y,z in cm
@@ -63,14 +75,44 @@ class PreonScene():
         return self.cup1_pos[0], self.cup1_pos[2], self.cup1_angles[1], self.vol_cup2, self.init_particles - self.remaining_particles
 
     def execute_action(self, vel_x, vel_y, vel_theta):
+        '''
+        Sets keyframes in simulation according to given action. It assumes that collision detection has already been checked.
+        '''
         # Calculates the next position of cup1 given velocities in cm/s, degree/s
         posx = self.cup1_pos[0] + self.timestep_per_frame*vel_x
         posy = self.cup1_pos[2] + self.timestep_per_frame*vel_y
         theta = self.cup1_angles[1] + self.timestep_per_frame*vel_theta
 
-        # TODO: Need to keep history of the entire trajectorie or read it from simulation.
-        # TODO: Need placeholder for X, Y, and Theta.
-        # TODO: Need to have previously set keyframes when starting simulation and running 2 frames.
+        # Estimate time when next action will be taken
+        time_next = self.scene.elapsed_time + self.frames_per_action*self.timestep_per_frame
+
+        # Set keyframes in order to reach desired position with provided velocities
+        self.trajectorie_angles = self._set_keyframes([self.cup1, self.sensor_cup1],self.trajectorie_angles,time_next,theta,'euler angles theta')
+        self.trajectorie_posx = self._set_keyframes([self.cup1, self.sensor_cup1],self.trajectorie_posx,time_next,posx,'position x')
+        self.trajectorie_posy = self._set_keyframes([self.cup1, self.sensor_cup1],self.trajectorie_posy,time_next,posy,'position z')
+
+        # Simulate k frames
+        self.scene.simulate(self.current_frame, self.current_frame + self.frames_per_action)
+        self.current_frame += self.frames_per_action
+
+        # Update statistics
+        self.update_stats()
+
+        # Return current state
+        return self.get_state()
+
+
+    def _set_keyframes(self,objects,position_keyframes,time,value,property_name):
+        '''
+        Append a new point to the trajectories of the given objects and set their keyframes accordingly
+        '''
+        position_keyframes.append((float(time),float(value),"Linear"))
+        for o in objects:
+            o.set_keyframes(property_name,position_keyframes)
+        return position_keyframes
+
+    def save_scene(self, path):
+        self.scene.save(path)
 
     '''
     def simulate_frame(self,num_frames=1):

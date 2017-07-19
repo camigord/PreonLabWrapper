@@ -35,3 +35,6 @@ class preon_env():
             return True
         else:
             return False
+
+    def save_scene(self, path):
+        self.env.save_scene(path)
