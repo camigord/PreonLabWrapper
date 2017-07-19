@@ -79,8 +79,8 @@ class PreonScene():
         Sets keyframes in simulation according to given action. It assumes that collision detection has already been checked.
         '''
         # Calculates the next position of cup1 given velocities in cm/s, degree/s
-        posx = self.cup1_pos[0] + self.timestep_per_frame*vel_x
-        posy = self.cup1_pos[2] + self.timestep_per_frame*vel_y
+        posx = (self.cup1_pos[0] + self.timestep_per_frame*vel_x) / 100.0   # in meters for simulator
+        posy = (self.cup1_pos[2] + self.timestep_per_frame*vel_y) / 100.0
         theta = self.cup1_angles[1] + self.timestep_per_frame*vel_theta
 
         # Estimate time when next action will be taken
@@ -98,9 +98,6 @@ class PreonScene():
         # Update statistics
         self.update_stats()
 
-        # Return current state
-        return self.get_state()
-
 
     def _set_keyframes(self,objects,position_keyframes,time,value,property_name):
         '''
@@ -113,6 +110,11 @@ class PreonScene():
 
     def save_scene(self, path):
         self.scene.save(path)
+
+    @property
+    def current_time(self):
+        return self.scene.elapsed_time
+
 
     '''
     def simulate_frame(self,num_frames=1):
