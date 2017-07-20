@@ -1,6 +1,6 @@
 import numpy as np
-from PreonScene import PreonScene
-from Collision.collision_aux import *
+from env.PreonScene import PreonScene
+from utils.collision_aux import *
 
 class preon_env():
     def __init__(self, path):
@@ -29,7 +29,6 @@ class preon_env():
         v_cup2 = get_vertices(cup2_pos, cup2_angle, cup2_size)
 
         if collide(v_cup1, v_cup2):
-            print('Collision!')
             return True
         else:
             return False
@@ -39,6 +38,7 @@ class preon_env():
         # Check that action does not end in collision
         if self.predict_collision(vel_x, vel_y, vel_theta) == True:
             # Collision detected!
+            print('Collision!')
             # TODO: what happens when we collide?
             pass
         else:
