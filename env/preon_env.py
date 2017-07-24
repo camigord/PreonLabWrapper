@@ -3,12 +3,20 @@ from env.PreonScene import PreonScene
 from utils.collision_aux import *
 
 class preon_env():
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, args):
+        self.path = args.path
+        self.step_cost = args.step_cost
+        self.collision_cost = args.collision_cost
+        self.goal_reward = args.goal_reward
+        self.goal_threshold = args.goal_threshold
+        self.max_time = args.max_time
 
     def reset(self):
         self.env = PreonScene(self.path)
         self.time_per_frame = self.env.timestep_per_frame
+        self.frame_rate = self.env.frame_rate
+        self.max_steps = int(self.max_time * self.frame_rate)
+        self.current_step = 0
 
         return self.env.get_state(), self.env.get_info()
 
@@ -33,23 +41,43 @@ class preon_env():
         else:
             return False
 
-    def step(self,action):
+    def step(self,action, goal):
         vel_x, vel_y, vel_theta = action
+        reward = None
         # Check that action does not end in collision
         if self.predict_collision(vel_x, vel_y, vel_theta) == True:
             # Collision detected!
-            print('Collision!')
-            # TODO: what happens when we collide?
-            pass
+            reward = self.collision_cost
         else:
             self.env.execute_action(vel_x, vel_y, vel_theta)
 
+        # Get environment state
         state = self.env.get_state()
 
-        # TODO: Compute reward
-        reward = None
+        # Determine if the episode is over
+        if self.current_step == self.max_steps or self.get_elapsed_time() >= self.max_time:
+            terminal = True
+        else:
+            terminal = False
 
-        return state, reward, self.env.get_info()
+        self.current_step += 1
+
+        # Compute reward
+        if reward is not None:
+            if self.was_goal_reached(state, goal):
+                reward = self.goal_reward
+            else:
+                reward = self.step_cost
+
+        return state, reward, terminal, self.env.get_info()
+
+    def was_goal_reached(self, state, goal):
+        dist_to_goal = np.absolute(np.array(state[3:5]) - np.array(goal)) - self.goal_threshold
+        if np.sum(np.maximum(dist_to_goal,0)) > 0:
+            return False
+        else:
+            # Goal was reached
+            return True
 
     def get_elapsed_time(self):
         return self.env.current_time
