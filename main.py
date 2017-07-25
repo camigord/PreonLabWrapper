@@ -7,6 +7,7 @@ from env.preon_env import Preon_env
 from agent.ddpg import DDPG
 from utils.memory import ReplayMemory
 from agent.evaluator import Evaluator
+from utils.util import *
 
 def generate_new_goal(args):
     # np.random.uniform(-1.0,1.0)
@@ -40,13 +41,13 @@ def train(args, agent, env, evaluate, debug=False):
                     observation2 = deepcopy(observation2)
 
                     # Insert into memory replay
-                     agent.observe(goal, reward, observation2, done)
+                    agent.observe(goal, reward, observation2, done)
 
-                     # Insert into temporal episode memory
-                     episode_memory.push(observation, goal, action, observation2, reward, done)
+                    # Insert into temporal episode memory
+                    episode_memory.push(observation, goal, action, observation2, reward, done)
 
-                     episode_reward += reward
-                     observation = deepcopy(observation2)
+                    episode_reward += reward
+                    observation = deepcopy(observation2)
 
                 # End of episode
                 if debug: prGreen('#Epoch: {} Cycle:{} Episode:{} Reward:{}'.format(epoch,cycle,episode,episode_reward))
@@ -99,7 +100,7 @@ if __name__ == "__main__":
 
     if opt.mode == 1:
         # Train the model
-        train(opt, agent, env, evaluate, debug=True):
+        train(opt, agent, env, evaluate, debug=True)
     elif opt.mode == 2:
         # Test the model
         goal = [200, 0]     # Defines testing goal in milliliters
