@@ -1,3 +1,6 @@
 *.pyc
 *.prstate
 *.stats
+*.xml
+*.prsim
+*.prrigidstate
