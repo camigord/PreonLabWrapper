@@ -1,68 +1,85 @@
 import numpy as np
+from copy import deepcopy
 
 from utils.options import Options
 from env.preon_env import *
 from agent.ddpg import DDPG
+from utils.memory import ReplayMemory
 
-def train(num_episodes, agent, env,  evaluate, validate_steps, debug=False):
+def generate_new_goal(args):
+    desired_vol = float(np.random.randint(0,args.max_volume + 1))   # Generate random expected volume.
+    new_goal = [desired_vol, 0.0]
+    return new_goal
+
+def train(args, agent, env, evaluate, debug=False):
 
     agent.is_training = True
-    step = episode = episode_steps = 0
-    episode_reward = 0.
-    observation = None
-    while step < num_iterations:
-        # reset if it is the start of episode
-        if observation is None:
-            observation = deepcopy(env.reset())
-            agent.reset(observation)
+    for epoch in range(args.epochs):
 
-        # agent pick action ...
-        if step <= args.warmup:
-            action = agent.random_action()
-        else:
-            action = agent.select_action(observation)
+        for cycle in range(args.cycles):
+            for episode in range(args.ep_per_cycle):
+                episode_memory = ReplayMemory(100)  # Size of memory should be length of episode
+                episode_reward = 0.
+                observation = None
+                done = False
+                while not done:
+                    goal = generate_new_goal(args)
+                    if observation is None:
+                        observation, _ = deepcopy(env.reset())
+                        agent.reset(observation)
 
-        # env response with next_observation, reward, terminate_info
-        observation2, reward, done, info = env.step(action)
-        observation2 = deepcopy(observation2)
-        if max_episode_length and episode_steps >= max_episode_length -1:
-            done = True
+                    # Select an action
+                    action = agent.select_action(observation,goal)
 
-        # agent observe and update policy
-        agent.observe(reward, observation2, done)
-        if step > args.warmup :
-            agent.update_policy()
+                    # Execute the action
+                    observation2, reward, done, info = env.step(action, goal)
+                    observation2 = deepcopy(observation2)
 
-        # [optional] evaluate
-        if evaluate is not None and validate_steps > 0 and step % validate_steps == 0:
-            policy = lambda x: agent.select_action(x, decay_epsilon=False)
-            validate_reward = evaluate(env, policy, debug=False, visualize=False)
-            if debug: prYellow('[Evaluate] Step_{:07d}: mean_reward:{}'.format(step, validate_reward))
+                    # Insert into memory replay
+                     agent.observe(goal, reward, observation2, done)
 
-        # [optional] save intermideate model
-        if step % int(num_iterations/3) == 0:
-            agent.save_model(output)
+                     # Insert into temporal episode memory
+                     episode_memory.push(observation, goal, action, observation2, reward, done)
 
-        # update
-        step += 1
-        episode_steps += 1
-        episode_reward += reward
-        observation = deepcopy(observation2)
+                     episode_reward += reward
+                     observation = deepcopy(observation2)
 
-        if done: # end of episode
-            if debug: prGreen('#{}: episode_reward:{} steps:{}'.format(episode,episode_reward,step))
+                # End of episode
+                if debug: prGreen('#Epoch: {} Cycle:{} Episode:{} Reward:{}'.format(epoch,cycle,episode,episode_reward))
 
-            agent.memory.append(
-                observation,
-                agent.select_action(observation),
-                0., False
-            )
+                # Sampling new goals for replay
+                current_transition = episode_memory.remove_first()
+                while current_transition is not None:
+                    _, _, _, _, next_s_batch, _ = episode_memory.sample(args.k_goals)
+                    # Get reward based on new goal and current transition
+                    for state in next_s_batch:
+                        new_goal = state[3:5]
+                        new_reward = env.estimate_new_reward(current_transition[0],new_goal,current_transition[4])
 
-            # reset
-            observation = None
-            episode_steps = 0
-            episode_reward = 0.
-            episode += 1
+                        # Store new transition
+                        agent.memory.push(current_transition[0], new_goal, current_transition[2], state, new_reward, current_transition[5])
+
+                    current_transition = episode_memory.remove_first()
+
+            # End of cycle
+            for step in range(args.opt_steps):
+                agent.update_policy()
+
+            # Evaluate performance after training
+            if evaluate is not None:
+                goal = generate_new_goal(args)
+                evaluate(env, agent, goal, debug=debug)
+
+            # Save model
+            agent.save_model(args.model_dir)
+
+        # End of epoch
+
+def test(agent, env, goal, evaluate, debug=False):
+    agent.is_training = False
+    agent.eval()
+
+    evaluate(env, agent, goal, debug=debug)
 
 if __name__ == "__main__":
     opt = Options()
@@ -74,7 +91,12 @@ if __name__ == "__main__":
     # Define agent
     agent = DDPG(opt.agent_params)
 
+    evaluate = Evaluator(opt.agent_params)
+
     if opt.mode == 1:
         # Train the model
+        train(opt.agent_params, agent, env, evaluate, debug=True):
     elif opt.mode == 2:
         # Test the model
+        goal = [200, 0]     # Defines testing goal in milliliters
+        test(agent, env, goal, evaluate, debug=True)

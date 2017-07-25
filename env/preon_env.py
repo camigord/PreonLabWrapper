@@ -79,6 +79,17 @@ class preon_env():
             # Goal was reached
             return True
 
+    def estimate_new_reward(self,state,goal,reward):
+        '''
+        Estimates a new reward based on the new goal. If previous reward corresponds to a collision, returns the same reward.
+        '''
+        if reward != self.collision_cost:
+            if self.was_goal_reached(state, goal):
+                reward = self.goal_reward
+            else:
+                reward = self.step_cost
+        return reward
+            
     def get_elapsed_time(self):
         return self.env.current_time
 

@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from util import *
+from utils.util import *
 
 class Params(object):
     def __init__(self):
@@ -54,23 +54,30 @@ class AgentParams(Params):  # hyperparameters for drl agents
         super(AgentParams, self).__init__()
 
         # optimizer
-        self.optim               = optim.Adam
+        self.optim            = optim.Adam
 
-        self.number_states       = 5        # Pos_x, pos_y, theta, poured_volume, spilled_volume
+        self.number_states    = 5        # Pos_x, pos_y, theta, poured_volume, spilled_volume
 
         # hyperparameters
-        self.steps               = 20000000 # max #iterations
-        self.batch_size          = 64       # batch size during training
-        self.rm_size             = 1000000  # memory replay maximum size
-        self.gamma               = 0.98
-        self.warm_up             = 100      # Time without training but only filling memory replay
-        self.lr                  = 0.001
+        self.batch_size       = 128      # batch size during training
+        self.rm_size          = 1000000  # memory replay maximum size
+        self.gamma            = 0.98
+        self.lr               = 0.001
 
-        self.criterion           = nn.MSELoss()
+        self.criterion        = nn.MSELoss()
 
-        self.tau                 = 0.05     # moving average for target network
-        self.epsilon             = 0.8      # Random action 20% of the time
-        self.noise_std           = 0.05     # Add noise with 5% standard deviation to actions
+        self.tau              = 0.05     # moving average for target network
+        self.epsilon          = 0.8      # Random action 20% of the time
+        self.noise_std        = 0.05     # Add noise with 5% standard deviation to actions
+
+        self.epochs           = 200      # Number of training epochs
+        self.cycles           = 50       # Length of an epoch
+        self.ep_per_cycle     = 16       # Number of episodes to run per cycle
+        self.opt_steps        = 20       # Optimization steps after each cycle
+        self.k_goals          = 4        # Number of additional goals to sample and add to replay memory
+        self.max_volume       = 450      # Maximum volume to pour in milliliters
+
+        self.validate_steps   = 2        # How many episodes to test and report performance
 
 class EnvParams():          # Settings for simulation environment
     def __init__(self):
@@ -79,7 +86,7 @@ class EnvParams():          # Settings for simulation environment
         self.collision_cost = -1.0      # Reward when collision is detected
         self.goal_reward = 1.0          # Reward when reaching the goal
         self.max_time = 20.0            # Maximum length of an episode in seconds
-        self.goal_threshold = 10.0      # Max volume difference for goal to be considered achieved in milliliter         
+        self.goal_threshold = 10.0      # Max volume difference for goal to be considered achieved in milliliter
 
 class Options(Params):
     agent_params  = AgentParams()
