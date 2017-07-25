@@ -2,8 +2,14 @@ import preonpy
 import numpy as np
 
 class PreonScene():
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, args):
+        self.args = args
+        self.path = args.path
+        self.min_x = args.min_x
+        self.max_x = args.max_x
+        self.min_y = args.min_y
+        self.max_y = args.max_y
+        self.max_volume = args.max_volume
         self.frames_per_action = 1              # How many frames to run before selecting a new action
 
         # Loading the scene
@@ -68,11 +74,28 @@ class PreonScene():
         return self.cup1_size, self.cup2_size
 
     def get_info(self):
-        return self.init_particles, self.remaining_particles, self.vol_cup1,
+        return self.init_particles, self.remaining_particles, self.vol_cup1
+
+    def get_normalized(self,value,var_min,var_max):
+        new_max = var_max + abs(var_min)
+        norm_value = ((value + abs(var_min)) - (new_max / 2.0)) / (new_max / 2.0)
+        return norm_value
 
     def get_state(self):
         # Get and return current state
-        return self.cup1_pos[0], self.cup1_pos[2], self.cup1_angles[1], self.vol_cup2, self.init_particles - self.remaining_particles
+        pos_x, pos_y = self.cup1_pos[0], self.cup1_pos[2]
+        theta_angle = self.cup1_angles[1]
+        poured_vol = self.vol_cup2
+        spilled_vol = self.init_particles - self.remaining_particles
+
+        theta_angle = theta_angle % 360.0
+
+        theta_angle_norm = self.get_normalized(theta_angle, 0.0, 360.0)
+        pos_x_norm = self.get_normalized(pos_x, self.min_x, self.max_x)
+        pos_y_norm = self.get_normalized(pos_y, self.min_y, self.max_y)
+        poured_vol_norm = self.get_normalized(poured_vol, 0.0, self.max_volume)
+        spilled_vol_norm = self.get_normalized(spilled_vol, 0.0, self.max_volume)
+        return pos_x_norm, pos_y_norm, theta_angle_norm, poured_vol_norm, spilled_vol_norm
 
     def execute_action(self, vel_x, vel_y, vel_theta):
         '''

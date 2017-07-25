@@ -2,17 +2,23 @@ import numpy as np
 from env.PreonScene import PreonScene
 from utils.collision_aux import *
 
-class preon_env():
+class Preon_env():
     def __init__(self, args):
-        self.path = args.path
+        self.args = args
         self.step_cost = args.step_cost
         self.collision_cost = args.collision_cost
         self.goal_reward = args.goal_reward
         self.goal_threshold = args.goal_threshold
         self.max_time = args.max_time
+        self.max_lin_vel = args.max_lin_vel
+        self.max_ang_vel = args.max_ang_vel
+        self.min_x = args.min_x
+        self.max_x = args.max_x
+        self.min_y = args.min_y
+        self.max_y = args.max_y
 
     def reset(self):
-        self.env = PreonScene(self.path)
+        self.env = PreonScene(self.args)
         self.time_per_frame = self.env.timestep_per_frame
         self.frame_rate = self.env.frame_rate
         self.max_steps = int(self.max_time * self.frame_rate)
@@ -41,11 +47,21 @@ class preon_env():
         else:
             return False
 
+    def is_out_of_range(self,vel_x, vel_y):
+        cup1_pos, cup1_angle, _, _ = self.env.get_cups_location()
+        # Estimate future position based on current pos and velocities
+        cup1_pos += self.time_per_frame * np.array([vel_x, vel_y])
+
+        if cup1_pos[0] > self.max_x or cup1_pos[0] < self.min_x or cup1_pos[1] > self.max_y or cup1_pos[1] < self.min_y:
+            return True
+        else:
+            return False
+
     def step(self,action, goal):
-        vel_x, vel_y, vel_theta = action
+        vel_x, vel_y, vel_theta = action * [self.max_lin_vel, self.max_lin_vel, self.max_ang_vel]
         reward = None
         # Check that action does not end in collision
-        if self.predict_collision(vel_x, vel_y, vel_theta) == True:
+        if self.predict_collision(vel_x, vel_y, vel_theta) == True or self.is_out_of_range(vel_x, vel_y)==True:
             # Collision detected!
             reward = self.collision_cost
         else:
@@ -63,7 +79,7 @@ class preon_env():
         self.current_step += 1
 
         # Compute reward
-        if reward is not None:
+        if reward is None:
             if self.was_goal_reached(state, goal):
                 reward = self.goal_reward
             else:
@@ -89,7 +105,7 @@ class preon_env():
             else:
                 reward = self.step_cost
         return reward
-            
+
     def get_elapsed_time(self):
         return self.env.current_time
 

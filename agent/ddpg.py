@@ -8,27 +8,27 @@ import torch.nn as nn
 
 from agent.model import Actor, Critic
 from utils.memory import ReplayMemory
-from random_process import OrnsteinUhlenbeckProcess
-from util import *
+from utils.util import *
 
 class DDPG(object):
     def __init__(self, args):
 
+        self.args = args
         if args.seed > 0:
             self.seed(args.seed)
 
-        self.args = args
         self.nb_states = args.number_states
         self.num_actions = 3
+        self.num_goals_feat = 2
 
         # Create Actor and Critic Network
-        self.actor = Actor(self.nb_states, self.num_actions)
-        self.actor_target = Actor(self.nb_states, self.num_actions)
+        self.actor = Actor(self.nb_states, self.num_actions, self.num_goals_feat )
+        self.actor_target = Actor(self.nb_states, self.num_actions,self.num_goals_feat )
         self.actor_optim  = args.optim(self.actor.parameters(), lr=args.prate)
 
-        self.critic = Critic(self.nb_states, self.num_actions)
-        self.critic_target = Critic(self.nb_states, self.num_actions)
-        self.critic_optim  = args.optim(self.critic.parameters(), lr=args.rate)
+        self.critic = Critic(self.nb_states, self.num_actions, self.num_goals_feat )
+        self.critic_target = Critic(self.nb_states, self.num_actions, self.num_goals_feat )
+        self.critic_optim  = args.optim(self.critic.parameters(), lr=args.lr)
 
         # Loads a previous model only if "continue_training" flag was set or we are in testing mode
         if self.args.load_model:

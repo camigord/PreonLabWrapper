@@ -1,29 +1,33 @@
+import preonpy
 import numpy as np
 from copy import deepcopy
 
 from utils.options import Options
-from env.preon_env import *
+from env.preon_env import Preon_env
 from agent.ddpg import DDPG
 from utils.memory import ReplayMemory
+from agent.evaluator import Evaluator
 
 def generate_new_goal(args):
-    desired_vol = float(np.random.randint(0,args.max_volume + 1))   # Generate random expected volume.
-    new_goal = [desired_vol, 0.0]
+    # np.random.uniform(-1.0,1.0)
+    desired_vol = np.random.choice([100,150,200,250,300,350,400,450])
+    desired_vol_norm = (desired_vol - args.max_volume/2.0) / (args.max_volume/2.0)
+    new_goal = [desired_vol_norm, 0.0]
     return new_goal
 
 def train(args, agent, env, evaluate, debug=False):
 
     agent.is_training = True
-    for epoch in range(args.epochs):
+    for epoch in range(args.agent_params.epochs):
 
-        for cycle in range(args.cycles):
-            for episode in range(args.ep_per_cycle):
+        for cycle in range(args.agent_params.cycles):
+            for episode in range(args.agent_params.ep_per_cycle):
+                goal = generate_new_goal(args.env_params)
                 episode_memory = ReplayMemory(100)  # Size of memory should be length of episode
                 episode_reward = 0.
                 observation = None
                 done = False
                 while not done:
-                    goal = generate_new_goal(args)
                     if observation is None:
                         observation, _ = deepcopy(env.reset())
                         agent.reset(observation)
@@ -50,7 +54,7 @@ def train(args, agent, env, evaluate, debug=False):
                 # Sampling new goals for replay
                 current_transition = episode_memory.remove_first()
                 while current_transition is not None:
-                    _, _, _, _, next_s_batch, _ = episode_memory.sample(args.k_goals)
+                    _, _, _, _, next_s_batch, _ = episode_memory.sample(args.agent_params.k_goals)
                     # Get reward based on new goal and current transition
                     for state in next_s_batch:
                         new_goal = state[3:5]
@@ -62,12 +66,12 @@ def train(args, agent, env, evaluate, debug=False):
                     current_transition = episode_memory.remove_first()
 
             # End of cycle
-            for step in range(args.opt_steps):
+            for step in range(args.agent_params.opt_steps):
                 agent.update_policy()
 
             # Evaluate performance after training
             if evaluate is not None:
-                goal = generate_new_goal(args)
+                goal = generate_new_goal(args.env_params)
                 evaluate(env, agent, goal, debug=debug)
 
             # Save model
@@ -86,7 +90,7 @@ if __name__ == "__main__":
     np.random.seed(opt.seed)
 
     # Define environment
-    env = preon_env(opt.env_params)
+    env = Preon_env(opt.env_params)
 
     # Define agent
     agent = DDPG(opt.agent_params)
@@ -95,7 +99,7 @@ if __name__ == "__main__":
 
     if opt.mode == 1:
         # Train the model
-        train(opt.agent_params, agent, env, evaluate, debug=True):
+        train(opt, agent, env, evaluate, debug=True):
     elif opt.mode == 2:
         # Test the model
         goal = [200, 0]     # Defines testing goal in milliliters
