@@ -11,9 +11,10 @@ from utils.util import *
 
 def generate_new_goal(args):
     # np.random.uniform(-1.0,1.0)
-    desired_vol = np.random.choice([100,150,200,250,300,350,400,450])
-    desired_vol_norm = (desired_vol - args.max_volume/2.0) / (args.max_volume/2.0)
-    new_goal = [desired_vol_norm, 0.0]
+    desired_poured_vol = np.random.choice([100,150,200,250,300,350,400,450])
+    desired_poured_vol_norm = (desired_poured_vol - args.max_volume/2.0) / (args.max_volume/2.0)
+    desired_spilled_vol_norm = (0.0 - args.max_volume/2.0) / (args.max_volume/2.0)
+    new_goal = [desired_poured_vol, desired_spilled_vol_norm]
     return new_goal
 
 def train(args, agent, env, evaluate, debug=False):
@@ -53,8 +54,8 @@ def train(args, agent, env, evaluate, debug=False):
                 if debug: prGreen('#Epoch: {} Cycle:{} Episode:{} Reward:{}'.format(epoch,cycle,episode,episode_reward))
 
                 # Sampling new goals for replay
-                current_transition = episode_memory.remove_first()
-                while current_transition is not None:
+                current_transition, mem_is_empty = episode_memory.remove_first()
+                while not mem_is_empty:
                     _, _, _, _, next_s_batch, _ = episode_memory.sample(args.agent_params.k_goals)
                     # Get reward based on new goal and current transition
                     for state in next_s_batch:
@@ -64,8 +65,9 @@ def train(args, agent, env, evaluate, debug=False):
                         # Store new transition
                         agent.memory.push(current_transition[0], new_goal, current_transition[2], state, new_reward, current_transition[5])
 
-                    current_transition = episode_memory.remove_first()
+                    current_transition, mem_is_empty = episode_memory.remove_first()
 
+            print('Training...')
             # End of cycle
             for step in range(args.agent_params.opt_steps):
                 agent.update_policy()

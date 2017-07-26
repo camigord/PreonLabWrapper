@@ -51,7 +51,7 @@ class Critic(nn.Module):
         self.fc2 = nn.Linear(64+32+nb_actions, 128)
         self.fc3 = nn.Linear(128, 128)
 
-        self.output_V = nn.Linear(128, nb_actions)
+        self.output_V = nn.Linear(128, 1)
         self.relu = nn.ReLU()
         self.init_weights(3e-3)
 

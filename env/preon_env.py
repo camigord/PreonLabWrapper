@@ -16,6 +16,7 @@ class Preon_env():
         self.max_x = args.max_x
         self.min_y = args.min_y
         self.max_y = args.max_y
+        self.max_volume = args.max_volume
 
     def reset(self):
         self.env = PreonScene(self.args)
@@ -88,7 +89,11 @@ class Preon_env():
         return state, reward, terminal, self.env.get_info()
 
     def was_goal_reached(self, state, goal):
-        dist_to_goal = np.absolute(np.array(state[3:5]) - np.array(goal)) - self.goal_threshold
+        # Values are normalized, we need to convert them back into milliliters
+        goal = (np.array(goal) * (self.max_volume/2.0)) + self.max_volume/2.0
+        current_vol_state = (np.array(state[3:5]) * (self.max_volume/2.0)) + self.max_volume/2.0
+
+        dist_to_goal = np.absolute(current_vol_state - goal) - self.goal_threshold
         if np.sum(np.maximum(dist_to_goal,0)) > 0:
             return False
         else:

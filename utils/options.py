@@ -73,7 +73,7 @@ class AgentParams(Params):  # hyperparameters for drl agents
 
         self.epochs           = 200      # Number of training epochs
         self.cycles           = 50       # Length of an epoch
-        self.ep_per_cycle     = 16       # Number of episodes to run per cycle
+        self.ep_per_cycle     = 2        # Number of episodes to run per cycle (16)
         self.opt_steps        = 20       # Optimization steps after each cycle
         self.k_goals          = 4        # Number of additional goals to sample and add to replay memory
 
@@ -85,7 +85,7 @@ class EnvParams():          # Settings for simulation environment
         self.step_cost        = -0.5              # Reward when goal is not reached, but no collision happens
         self.collision_cost   = -1.0              # Reward when collision is detected
         self.goal_reward      = 1.0               # Reward when reaching the goal
-        self.max_time         = 20.0              # Maximum length of an episode in seconds
+        self.max_time         = 10.0              # Maximum length of an episode in seconds (20)
         self.goal_threshold   = 10.0              # Max volume difference for goal to be considered achieved in milliliters
 
         self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
