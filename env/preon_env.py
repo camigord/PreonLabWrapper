@@ -103,6 +103,7 @@ class Preon_env():
     def estimate_new_reward(self,state,goal,reward):
         '''
         Estimates a new reward based on the new goal. If previous reward corresponds to a collision, returns the same reward.
+         - state is the next_state after performing an action in the current transition
         '''
         if reward != self.collision_cost:
             if self.was_goal_reached(state, goal):

@@ -5,7 +5,8 @@ from copy import deepcopy
 class Evaluator(object):
 
     def __init__(self, args):
-        self.num_episodes = args.validate_steps
+        self.num_episodes = args.agent_params.validate_steps
+        self.logger = args.logger
 
     def __call__(self, env, agent, goal, debug=False):
         observation = None
@@ -27,5 +28,8 @@ class Evaluator(object):
 
                 # update
                 episode_reward += reward
+
+            self.logger.warning("Reporting Validation Reward: " + str(episode_reward))
+            self.logger.warning("Validation " + str(episode) + ": Goal=" +str(goal) + " | Final state:" + str(observation2[3:5]))
 
             if debug: prYellow('[Evaluate] #Episode{}: episode_reward:{}'.format(episode,episode_reward))

@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from utils.util import *
+from utils.logger import loggerConfig
 
 class Params(object):
     def __init__(self):
@@ -62,8 +63,8 @@ class AgentParams(Params):  # hyperparameters for drl agents
         self.batch_size       = 128      # batch size during training
         self.rm_size          = 1000000  # memory replay maximum size
         self.gamma            = 0.98     # Discount factor
-        self.lr               = 0.001    # Learning rate
-        self.prate            = 0.0001   # Policy net learning rate
+        self.lr               = 0.001    # Learning rate for critic
+        self.prate            = 0.0001   # Learning rate for actor
 
         self.criterion        = nn.MSELoss()
 
@@ -73,7 +74,7 @@ class AgentParams(Params):  # hyperparameters for drl agents
 
         self.epochs           = 200      # Number of training epochs
         self.cycles           = 50       # Length of an epoch
-        self.ep_per_cycle     = 2        # Number of episodes to run per cycle (16)
+        self.ep_per_cycle     = 20       # Number of episodes to run per cycle
         self.opt_steps        = 20       # Optimization steps after each cycle
         self.k_goals          = 4        # Number of additional goals to sample and add to replay memory
 
@@ -85,7 +86,7 @@ class EnvParams():          # Settings for simulation environment
         self.step_cost        = -0.5              # Reward when goal is not reached, but no collision happens
         self.collision_cost   = -1.0              # Reward when collision is detected
         self.goal_reward      = 1.0               # Reward when reaching the goal
-        self.max_time         = 10.0              # Maximum length of an episode in seconds (20)
+        self.max_time         = 20.0              # Maximum length of an episode in seconds
         self.goal_threshold   = 10.0              # Max volume difference for goal to be considered achieved in milliliters
 
         self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
@@ -99,3 +100,7 @@ class EnvParams():          # Settings for simulation environment
 class Options(Params):
     agent_params  = AgentParams()
     env_params = EnvParams()
+
+    log_name    = agent_params.root_dir + "/logs/log_file.log"
+    logger      = loggerConfig(log_name, verbose=0)
+    logger.warning("<===================================>")
