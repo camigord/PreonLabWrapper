@@ -18,8 +18,8 @@ class Params(object):
         self.root_dir    = os.getcwd()
 
         # training signature
-        self.visdom_port = 8098
-        self.visualize = False          # Create Visdom instance
+        self.visdom_port = 8098         # Should be the same port that was used when starting server
+        self.visualize = True           # Create Visdom instance
 
         # training configuration
         self.mode        = 1            # 1(train) | 2(test model_file)
@@ -45,10 +45,6 @@ class Params(object):
 
         if self.visualize:
             self.vis = visdom.Visdom(port=self.visdom_port)
-            # TODO: Create TMUX session and start visdom server
-            #self.logger.warning("bash$: source activate pytorchenv")
-            #self.logger.warning("bash$: python -m visdom.server")           # activate visdom server on bash
-            #self.logger.warning("http://localhost:8097/env/" + self.refs)   # open this address on browser
 
 class AgentParams(Params):  # hyperparameters for drl agents
     def __init__(self):

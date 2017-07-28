@@ -33,3 +33,6 @@ class Evaluator(object):
             self.logger.warning("Validation " + str(episode) + ": Goal=" +str(goal) + " | Final state:" + str(observation2[3:5]))
 
             if debug: prYellow('[Evaluate] #Episode{}: episode_reward:{}'.format(episode,episode_reward))
+            result.append(episode_reward)
+
+        return np.mean(result)

@@ -92,6 +92,8 @@ class DDPG(object):
         soft_update(self.actor_target, self.actor, self.tau)
         soft_update(self.critic_target, self.critic, self.tau)
 
+        return to_numpy(value_loss), to_numpy(policy_loss)
+
     def eval(self):
         self.actor.eval()
         self.actor_target.eval()
@@ -114,7 +116,6 @@ class DDPG(object):
         self.a_t = action
         return action
 
-    # TODO: Test this
     def select_action(self, s_t, goal, decay_epsilon=False):
         if self.is_training:
             if np.random.random_sample() > self.epsilon:    # Random action
