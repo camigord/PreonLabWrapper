@@ -15,6 +15,7 @@ class Evaluator(object):
         for episode in range(self.num_episodes):
             # reset at the start of episode
             observation, _ = deepcopy(env.reset())
+            agent.reset(observation)
             episode_reward = 0.
 
             assert observation is not None
@@ -26,11 +27,14 @@ class Evaluator(object):
                 observation2, reward, done, info = env.step(action, goal)
                 observation2 = deepcopy(observation2)
 
+                agent.observe(goal, reward, observation2, done)
+
                 # update
                 episode_reward += reward
+                observation = deepcopy(observation2)
 
             self.logger.warning("Reporting Validation Reward: " + str(episode_reward))
-            self.logger.warning("Validation " + str(episode) + ": Goal=" +str(goal) + " | Final state:" + str(observation2[3:5]))
+            self.logger.warning("Validation " + str(episode) + ": Goal=" +str(goal) + " | Final state:" + str(observation[3:5]))
 
             if debug: prYellow('[Evaluate] #Episode{}: episode_reward:{}'.format(episode,episode_reward))
             result.append(episode_reward)

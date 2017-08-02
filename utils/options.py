@@ -43,7 +43,7 @@ class Params(object):
             prRed("Pre-Trained model does not exist, Testing aborted!!!")
             sys.exit()
 
-        if self.visualize:
+        if self.visualize and self.mode==1:
             self.vis = visdom.Visdom(port=self.visdom_port)
 
 class AgentParams(Params):  # hyperparameters for drl agents
@@ -72,7 +72,7 @@ class AgentParams(Params):  # hyperparameters for drl agents
         self.cycles           = 50       # Length of an epoch
         self.ep_per_cycle     = 20       # Number of episodes to run per cycle
         self.opt_steps        = 20       # Optimization steps after each cycle
-        self.k_goals          = 4        # Number of additional goals to sample and add to replay memory
+        self.k_goals          = 1        # Number of additional goals to sample and add to replay memory
 
         self.validate_steps   = 2        # How many episodes to test and report performance
 

@@ -1,6 +1,7 @@
 import preonpy
 import numpy as np
 from copy import deepcopy
+import os
 
 from utils.options import Options
 from env.preon_env import Preon_env
@@ -8,6 +9,7 @@ from agent.ddpg import DDPG
 from utils.memory import ReplayMemory
 from agent.evaluator import Evaluator
 from utils.util import *
+
 
 def generate_new_goal(args, validation=False):
     if validation:
@@ -106,7 +108,8 @@ def train(args, agent, env, evaluate, debug=False):
             logger.warning("Reporting @ Epoch: " + str(epoch) + " | Cycle: " + str(cycle) + " | Avg. Reward: " + str(np.mean(episodes_cum_rewards)))
             # End of cycle
             # Training network
-            v_losses = p_losses = []
+            v_losses = []
+            p_losses = []
             for step in range(args.agent_params.opt_steps):
                 value_loss, policy_loss = agent.update_policy()
                 v_losses.append(value_loss)
@@ -114,8 +117,10 @@ def train(args, agent, env, evaluate, debug=False):
 
             # Evaluate performance after training
             if evaluate is not None:
+                agent.is_training = False
                 goal = generate_new_goal(args.env_params, validation=True)
                 valid_reward = evaluate(env, agent, goal, debug=debug)
+                agent.is_training = True
 
             # Performance visualization
             avg_collition_rate = np.mean(collision_rate)
@@ -161,11 +166,41 @@ def train(args, agent, env, evaluate, debug=False):
 
         # End of epoch
 
-def test(agent, env, goal, evaluate, debug=False):
+def test(args, agent, env, goal):
     agent.is_training = False
     agent.eval()
 
-    evaluate(env, agent, goal, debug=debug)
+    desired_poured_vol_norm = (goal[0] - args.env_params.max_volume/2.0) / (args.env_params.max_volume/2.0)
+    desired_spilled_vol_norm = (goal[1] - args.env_params.max_volume/2.0) / (args.env_params.max_volume/2.0)
+    goal = [desired_poured_vol_norm, desired_spilled_vol_norm]
+
+    observation = None
+
+    # reset at the start of episode
+    observation, _ = deepcopy(env.reset())
+    agent.reset(observation)
+    episode_reward = 0.
+
+    assert observation is not None
+
+    # start episode
+    done = False
+    while not done:
+        action = agent.select_action(observation, goal, decay_epsilon=False)
+        observation2, reward, done, info = env.step(action, goal)
+        observation2 = deepcopy(observation2)
+
+        agent.observe(goal, reward, observation2, done)
+
+        # update
+        episode_reward += reward
+        observation = deepcopy(observation2)
+
+    prYellow('Reporting Validation Reward :{}'.format(episode_reward))
+    prYellow('Goal: {} | Final state: {}'.format(goal,observation[3:5]))
+
+    env.save_scene(args.root_dir +'/test_scenes/test1.prscene')
+
 
 if __name__ == "__main__":
     opt = Options()
@@ -184,5 +219,5 @@ if __name__ == "__main__":
         train(opt, agent, env, evaluate, debug=True)
     elif opt.mode == 2:
         # Test the model
-        goal = [200, 0]     # Defines testing goal in milliliters
-        test(agent, env, goal, evaluate, debug=False)
+        goal = [0, 200]     # Defines testing goal in milliliters
+        test(opt, agent, env, goal)

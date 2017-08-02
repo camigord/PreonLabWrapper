@@ -74,6 +74,9 @@ class DDPG(object):
         q_batch = self.critic(to_tensor(state_batch), to_tensor(goal_batch), to_tensor(action_batch))
 
         value_loss = self.criterion(q_batch, target_q_batch)
+
+        val_loss = to_numpy(value_loss)[0]
+
         value_loss.backward()
         self.critic_optim.step()
 
@@ -83,8 +86,10 @@ class DDPG(object):
         policy_loss = -self.critic(to_tensor(state_batch), to_tensor(goal_batch),
             self.actor(to_tensor(state_batch), to_tensor(goal_batch))
         )
-
         policy_loss = policy_loss.mean()
+
+        pol_loss = to_numpy(policy_loss)[0]
+
         policy_loss.backward()
         self.actor_optim.step()
 
@@ -92,7 +97,7 @@ class DDPG(object):
         soft_update(self.actor_target, self.actor, self.tau)
         soft_update(self.critic_target, self.critic, self.tau)
 
-        return to_numpy(value_loss), to_numpy(policy_loss)
+        return val_loss, pol_loss
 
     def eval(self):
         self.actor.eval()
@@ -109,7 +114,8 @@ class DDPG(object):
     def observe(self, goal, r_t, s_t1, done):
         if self.is_training:
             self.memory.push(self.s_t, goal, self.a_t, s_t1, r_t, done)
-            self.s_t = s_t1
+
+        self.s_t = s_t1
 
     def random_action(self):
         action = np.random.uniform(-1.,1.,self.num_actions)
