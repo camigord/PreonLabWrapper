@@ -15,14 +15,15 @@ def fanin_init(size, fanin=None):
 class Actor(nn.Module):
     def __init__(self, nb_states, nb_actions, nb_goals):
         super(Actor, self).__init__()
-        self.fc1_s = nn.Linear(nb_states, 64)   # State input
-        self.fc1_g = nn.Linear(nb_goals, 32)    # Goal input
-        self.fc2 = nn.Linear(64 + 32, 128)
-        self.fc3 = nn.Linear(128, 128)
+        self.fc1_s = nn.Linear(nb_states, 128)   # State input
+        self.fc1_g = nn.Linear(nb_goals, 16)    # Goal input
+        self.fc2 = nn.Linear(128 + 16, 144)
+        self.fc3 = nn.Linear(144, 64)
 
-        self.actor_velocities = nn.Linear(128, nb_actions)
+        self.actor_velocities = nn.Linear(64, nb_actions)
 
-        self.relu = nn.ReLU()
+        #self.relu = nn.ReLU()
+        self.elu = nn.ELU()
         self.tanh = nn.Tanh()
         self.init_weights(3e-3)
 
@@ -34,11 +35,11 @@ class Actor(nn.Module):
         self.actor_velocities.weight.data = fanin_init(self.actor_velocities.weight.data.size())
 
     def forward(self, state, goal):
-        out_state = self.relu(self.fc1_s(state))
-        out_goal = self.relu(self.fc1_g(goal))
+        out_state = self.elu(self.fc1_s(state))
+        out_goal = self.elu(self.fc1_g(goal))
         state_goal = torch.cat([out_state,out_goal],1)
-        out = self.relu(self.fc2(state_goal))
-        hidden_features = self.relu(self.fc3(out))
+        out = self.elu(self.fc2(state_goal))
+        hidden_features = self.elu(self.fc3(out))
 
         output_vel = self.tanh(self.actor_velocities(hidden_features))
         return output_vel
@@ -46,13 +47,14 @@ class Actor(nn.Module):
 class Critic(nn.Module):
     def __init__(self, nb_states, nb_actions, nb_goals):
         super(Critic, self).__init__()
-        self.fc1_s = nn.Linear(nb_states, 64)   # State input
-        self.fc1_g = nn.Linear(nb_goals, 32)    # Goal input
-        self.fc2 = nn.Linear(64+32+nb_actions, 128)
-        self.fc3 = nn.Linear(128, 128)
+        self.fc1_s = nn.Linear(nb_states, 128)   # State input
+        self.fc1_g = nn.Linear(nb_goals, 16)    # Goal input
+        self.fc2 = nn.Linear(128+16+nb_actions, 200)
+        self.fc3 = nn.Linear(200, 64)
 
-        self.output_V = nn.Linear(128, 1)
-        self.relu = nn.ReLU()
+        self.output_V = nn.Linear(64, 1)
+        #self.relu = nn.ReLU()
+        self.elu = nn.ELU()
         self.init_weights(3e-3)
 
     def init_weights(self, init_w):
@@ -63,12 +65,12 @@ class Critic(nn.Module):
         self.output_V.weight.data = fanin_init(self.output_V.weight.data.size())
 
     def forward(self, state, goal, action):
-        out_state = self.relu(self.fc1_s(state))
-        out_goal = self.relu(self.fc1_g(goal))
+        out_state = self.elu(self.fc1_s(state))
+        out_goal = self.elu(self.fc1_g(goal))
         # debug()
         state_goal_action = torch.cat([out_state,out_goal,action],1)
-        out = self.relu(self.fc2(state_goal_action))
-        out = self.relu(self.fc3(out))
+        out = self.elu(self.fc2(state_goal_action))
+        out = self.elu(self.fc3(out))
 
-        vel_values = self.output_V(out)
-        return vel_values
+        vel_value = self.output_V(out)
+        return vel_value

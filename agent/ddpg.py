@@ -123,32 +123,27 @@ class DDPG(object):
         return action
 
     def select_action(self, s_t, goal, decay_epsilon=False):
-        if self.is_training:
-            if np.random.random_sample() > self.epsilon:    # Random action
-                return self.random_action()
-            else:
-                action = to_numpy(self.actor(to_tensor(np.array([s_t])),to_tensor(np.array([goal])))).squeeze(0)
-                action = self.add_noise_to_action(action)
-                action = np.clip(action, -1., 1.)
-
-                self.a_t = action
-                return action
+        if np.random.random_sample() > self.epsilon:    # Random action
+            return self.random_action()
         else:
-            # No noise or exploration during testing
             action = to_numpy(self.actor(to_tensor(np.array([s_t])),to_tensor(np.array([goal])))).squeeze(0)
+            action = self.add_noise_to_action(action)
+            action = np.clip(action, -1., 1.)
+
             self.a_t = action
             return action
-
-        '''
-        if decay_epsilon:
-            self.epsilon += self.depsilon
-        '''
 
     def add_noise_to_action(self, action):
         '''
         Adds normal noise to each action with standard deviation equal to 5% of the total range. In this case the range is [-1,1]
         '''
-        return np.random.normal(action,self.args.noise_std)
+        # Sample from a normal distribution with mean equal to action and std equal to 5%
+        return np.random.normal(action,self.args.noise_std*2)
+
+    def select_action_validation(self, s_t, goal):
+        # No noise or exploration during testing
+        action = to_numpy(self.actor_target(to_tensor(np.array([s_t])),to_tensor(np.array([goal])))).squeeze(0)
+        return action
 
     def reset(self, obs):
         self.s_t = obs

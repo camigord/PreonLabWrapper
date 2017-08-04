@@ -12,6 +12,8 @@ class Evaluator(object):
         observation = None
         result = []
 
+        agent.is_training = False
+
         for episode in range(self.num_episodes):
             # reset at the start of episode
             observation, _ = deepcopy(env.reset())
@@ -23,7 +25,7 @@ class Evaluator(object):
             # start episode
             done = False
             while not done:
-                action = agent.select_action(observation, goal, decay_epsilon=False)
+                action = agent.select_action_validation(observation, goal)
                 observation2, reward, done, info = env.step(action, goal)
                 observation2 = deepcopy(observation2)
 
@@ -39,4 +41,5 @@ class Evaluator(object):
             if debug: prYellow('[Evaluate] #Episode{}: episode_reward:{}'.format(episode,episode_reward))
             result.append(episode_reward)
 
+        agent.is_training = True
         return np.mean(result)
