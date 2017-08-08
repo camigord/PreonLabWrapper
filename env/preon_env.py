@@ -10,8 +10,13 @@ class Preon_env():
         self.goal_reward = args.goal_reward
         self.goal_threshold = args.goal_threshold
         self.max_time = args.max_time
+
         self.max_lin_vel = args.max_lin_vel
         self.max_ang_vel = args.max_ang_vel
+
+        self.max_lin_disp = args.max_lin_disp
+        self.max_ang_disp = args.max_ang_disp
+
         self.min_x = args.min_x
         self.max_x = args.max_x
         self.min_y = args.min_y
@@ -25,7 +30,10 @@ class Preon_env():
         self.max_steps = int(self.max_time * self.frame_rate)
         self.current_step = 0
 
-        return self.env.get_state(), self.env.get_info()
+        state = list(self.env.get_state())
+        state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:]
+
+        return state, self.env.get_info()
 
     def predict_collision(self,vel_x, vel_y, vel_theta):
         # Get current position of both cups
@@ -59,17 +67,34 @@ class Preon_env():
             return False
 
     def step(self,action, goal):
+        '''
+        action is the position relative to current location where cup1 should end after running this frame.
+        '''
+        collision = False
+        # Calculate desired displacement based on scales (this is a displacement in cm or degrees per frame)
+        delta_x, delta_y, delta_theta = action * [self.max_lin_disp, self.max_lin_disp, self.max_ang_disp]
+
+        # The required velocities in (cm/s or degree/s) are equal to the displacement time the number of frames per second
+        vel_x, vel_y, vel_theta = self.frame_rate * np.array([delta_x, delta_y,delta_theta])
+
+        '''
         vel_x, vel_y, vel_theta = action * [self.max_lin_vel, self.max_lin_vel, self.max_ang_vel]
+        '''
         reward = None
         # Check that action does not end in collision
         if self.predict_collision(vel_x, vel_y, vel_theta) == True or self.is_out_of_range(vel_x, vel_y)==True:
             # Collision detected!
             reward = self.collision_cost
+            collision = True
         else:
             self.env.execute_action(vel_x, vel_y, vel_theta)
 
         # Get environment state
         state = self.env.get_state()
+
+        # Add normalized velocities to state: velocities happen to be the same as input action after normalizing
+        state = list(state)
+        state = state[0:3] + list(action) + state[3:]
 
         # Determine if the episode is over
         if self.current_step == self.max_steps or self.get_elapsed_time() >= self.max_time:
@@ -84,14 +109,18 @@ class Preon_env():
             if self.was_goal_reached(state, goal):
                 reward = self.goal_reward
             else:
-                reward = self.step_cost
+                #reward = self.step_cost
+                # NOTE: Trying same reward for collision and step
+                reward = self.collision_cost
 
-        return state, reward, terminal, self.env.get_info()
+        return state, reward, terminal, self.env.get_info(), collision
 
+
+    # NOTE: Is this the best way of verifying the goal?
     def was_goal_reached(self, state, goal):
         # Values are normalized, we need to convert them back into milliliters
         goal = (np.array(goal) * (self.max_volume/2.0)) + self.max_volume/2.0
-        current_vol_state = (np.array(state[3:5]) * (self.max_volume/2.0)) + self.max_volume/2.0
+        current_vol_state = (np.array(state[6:]) * (self.max_volume/2.0)) + self.max_volume/2.0
 
         dist_to_goal = np.absolute(current_vol_state - goal) - self.goal_threshold
         if np.sum(np.maximum(dist_to_goal,0)) > 0:
@@ -105,11 +134,14 @@ class Preon_env():
         Estimates a new reward based on the new goal. If previous reward corresponds to a collision, returns the same reward.
          - state is the next_state after performing an action in the current transition
         '''
-        if reward != self.collision_cost:
-            if self.was_goal_reached(state, goal):
-                reward = self.goal_reward
-            else:
-                reward = self.step_cost
+        # NOTE: Trying same reward for collision and step
+        #if reward != self.collision_cost:
+        if self.was_goal_reached(state, goal):
+            reward = self.goal_reward
+        else:
+            #reward = self.step_cost
+            # NOTE: Trying same reward for collision and step
+            reward = self.collision_cost
         return reward
 
     def get_elapsed_time(self):

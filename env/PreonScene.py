@@ -100,6 +100,7 @@ class PreonScene():
     def execute_action(self, vel_x, vel_y, vel_theta):
         '''
         Sets keyframes in simulation according to given action. It assumes that collision detection has already been checked.
+        Velocities are given in cm or degrees per second
         '''
         # Calculates the next position of cup1 given velocities in cm/s, degree/s
         posx = (self.cup1_pos[0] + self.timestep_per_frame*vel_x) / 100.0   # in meters for simulator

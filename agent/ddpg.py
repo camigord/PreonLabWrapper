@@ -28,7 +28,7 @@ class DDPG(object):
 
         self.critic = Critic(self.nb_states, self.num_actions, self.num_goals_feat )
         self.critic_target = Critic(self.nb_states, self.num_actions, self.num_goals_feat )
-        self.critic_optim  = args.optim(self.critic.parameters(), lr=args.lr)
+        self.critic_optim  = args.optim(self.critic.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
         # Loads a previous model only if "continue_training" flag was set or we are in testing mode
         if self.args.load_model:
@@ -62,7 +62,8 @@ class DDPG(object):
         # Prepare for the target q batch
         var_goal = to_tensor(goal_batch, volatile=True)
         var_next_state = to_tensor(next_state_batch, volatile=True)
-        next_q_values = self.critic_target(var_next_state, var_goal,self.actor_target(var_next_state, var_goal))
+        action_actor_target, _ = self.actor_target(var_next_state, var_goal)
+        next_q_values = self.critic_target(var_next_state, var_goal,action_actor_target)
         next_q_values.volatile=False
 
         var_terminal = to_tensor(terminal_batch.astype(np.float))
@@ -73,20 +74,24 @@ class DDPG(object):
 
         q_batch = self.critic(to_tensor(state_batch), to_tensor(goal_batch), to_tensor(action_batch))
 
+        # TODO: Clip critic targets to range [-1/(1-gamma), 0]
         value_loss = self.criterion(q_batch, target_q_batch)
 
         val_loss = to_numpy(value_loss)[0]
 
         value_loss.backward()
+
         self.critic_optim.step()
 
         # Actor update
         self.actor.zero_grad()
 
-        policy_loss = -self.critic(to_tensor(state_batch), to_tensor(goal_batch),
-            self.actor(to_tensor(state_batch), to_tensor(goal_batch))
-        )
+        action_actor, preactivations = self.actor(to_tensor(state_batch), to_tensor(goal_batch))
+        policy_loss = -self.critic(to_tensor(state_batch), to_tensor(goal_batch), action_actor)
         policy_loss = policy_loss.mean()
+
+        # NOTE: add square of tanh preactivations to actor's cost
+        policy_loss += torch.sum(torch.pow(preactivations,2),1).mean()
 
         pol_loss = to_numpy(policy_loss)[0]
 
@@ -122,11 +127,12 @@ class DDPG(object):
         self.a_t = action
         return action
 
-    def select_action(self, s_t, goal, decay_epsilon=False):
+    def select_action(self, s_t, goal):
         if np.random.random_sample() > self.epsilon:    # Random action
             return self.random_action()
         else:
-            action = to_numpy(self.actor(to_tensor(np.array([s_t])),to_tensor(np.array([goal])))).squeeze(0)
+            action, _ = self.actor(to_tensor(np.array([s_t])),to_tensor(np.array([goal])))
+            action = to_numpy(action).squeeze(0)
             action = self.add_noise_to_action(action)
             action = np.clip(action, -1., 1.)
 
@@ -142,7 +148,8 @@ class DDPG(object):
 
     def select_action_validation(self, s_t, goal):
         # No noise or exploration during testing
-        action = to_numpy(self.actor_target(to_tensor(np.array([s_t])),to_tensor(np.array([goal])))).squeeze(0)
+        action, _ = self.actor_target(to_tensor(np.array([s_t])),to_tensor(np.array([goal])))
+        action = to_numpy(action).squeeze(0)
         return action
 
     def reset(self, obs):

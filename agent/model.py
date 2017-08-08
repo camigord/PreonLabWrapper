@@ -41,8 +41,9 @@ class Actor(nn.Module):
         out = self.elu(self.fc2(state_goal))
         hidden_features = self.elu(self.fc3(out))
 
-        output_vel = self.tanh(self.actor_velocities(hidden_features))
-        return output_vel
+        preactivations = self.actor_velocities(hidden_features)
+        output_vel = self.tanh(preactivations)
+        return output_vel, preactivations
 
 class Critic(nn.Module):
     def __init__(self, nb_states, nb_actions, nb_goals):

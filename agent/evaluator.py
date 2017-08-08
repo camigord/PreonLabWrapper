@@ -26,7 +26,7 @@ class Evaluator(object):
             done = False
             while not done:
                 action = agent.select_action_validation(observation, goal)
-                observation2, reward, done, info = env.step(action, goal)
+                observation2, reward, done, info, collision = env.step(action, goal)
                 observation2 = deepcopy(observation2)
 
                 agent.observe(goal, reward, observation2, done)
@@ -36,7 +36,7 @@ class Evaluator(object):
                 observation = deepcopy(observation2)
 
             self.logger.warning("Reporting Validation Reward: " + str(episode_reward))
-            self.logger.warning("Validation " + str(episode) + ": Goal=" +str(goal) + " | Final state:" + str(observation[3:5]))
+            self.logger.warning("Validation " + str(episode) + ": Goal=" +str(goal) + " | Final state:" + str(observation[6:]))
 
             if debug: prYellow('[Evaluate] #Episode{}: episode_reward:{}'.format(episode,episode_reward))
             result.append(episode_reward)

@@ -1,25 +1,16 @@
-from __future__ import absolute_import
-from __future__ import division
 import numpy as np
 import os
-import visdom
 import sys
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from utils.util import *
-from utils.logger import loggerConfig
-
 class Params(object):
     def __init__(self):
 
-        self.root_dir    = os.getcwd()
-
-        # training signature
-        self.visdom_port = 8098         # Should be the same port that was used when starting server
-        self.visualize = True           # Create Visdom instance
+        #self.root_dir    = os.getcwd()
+        self.root_dir = '/home/camilog/Documents/Git_Repo/PreonLabWrapper'
 
         # training configuration
         self.mode        = 1            # 1(train) | 2(test model_file)
@@ -37,11 +28,7 @@ class Params(object):
         if (self.continue_training or self.mode == 2) and (os.path.exists(self.model_dir + "/actor.pkl") and os.path.exists(self.model_dir + "/critic.pkl")):
             self.load_model  = True
         elif self.mode == 2:
-            prRed("Pre-Trained model does not exist, Testing aborted!!!")
             sys.exit()
-
-        if self.visualize and self.mode==1:
-            self.vis = visdom.Visdom(port=self.visdom_port)
 
 class AgentParams(Params):  # hyperparameters for drl agents
     def __init__(self):
@@ -50,8 +37,7 @@ class AgentParams(Params):  # hyperparameters for drl agents
         # optimizer
         self.optim            = optim.Adam
 
-        self.number_states    = 8        # Pos_x, pos_y, theta, vel_x, vel_y, vel_t, poured_volume, spilled_volume
-        self.weight_decay     = 0.01     # L2 regularization weight decay
+        self.number_states    = 5        # Pos_x, pos_y, theta, poured_volume, spilled_volume
 
         # hyperparameters
         self.batch_size       = 128      # batch size during training
@@ -76,20 +62,18 @@ class AgentParams(Params):  # hyperparameters for drl agents
 
 class EnvParams():          # Settings for simulation environment
     def __init__(self):
-        self.path             = "scene1.prscene"  # Path to the PreonLab scene
+        self.root_dir         = '/home/camilog/Documents/Git_Repo/PreonLabWrapper'
+        self.path             = self.root_dir + "/scene1.prscene"   # Path to the PreonLab scene
         self.step_cost        = -0.5              # Reward when goal is not reached, but no collision happens
         self.collision_cost   = -1.0              # Reward when collision is detected
-        self.goal_reward      = 0.0               # Reward when reaching the goal
+        self.goal_reward      = 1.0               # Reward when reaching the goal
         self.max_time         = 20.0              # Maximum length of an episode in seconds
-        self.goal_threshold   = 25.0              # Max volume difference for goal to be considered achieved in milliliters
-
-        # NOTE: these 2 may not be required
-        self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
-        self.max_ang_vel      = 45.0              # Maximum absolute angular velocity in degrees/s
+        self.goal_threshold   = 10.0              # Max volume difference for goal to be considered achieved in milliliters
 
         self.max_lin_disp     = 2.0               # Maximum linear displacement in cm/frame
         self.max_ang_disp     = 10.0              # Maximum angular rotation in degrees/frame
-
+        self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
+        self.max_ang_vel      = 45.0              # Maximum absolute angular velocity in degrees/s
         self.min_x            = -12.0             # Range of possible positions
         self.max_x            = 12.0              # Moving outside this range will result in collision
         self.min_y            = 0.0
@@ -99,7 +83,3 @@ class EnvParams():          # Settings for simulation environment
 class Options(Params):
     agent_params  = AgentParams()
     env_params = EnvParams()
-
-    log_name    = agent_params.root_dir + "/logs/log_file.log"
-    logger      = loggerConfig(log_name, verbose=0)
-    logger.warning("<===================================>")

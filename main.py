@@ -48,11 +48,10 @@ def train(args, agent, env, evaluate, debug=False):
             succesful_transitions = []
             succesful_transitions_with_actions = []
             reached_goals = []
-
             action_hist = []
 
             for episode in range(args.agent_params.ep_per_cycle):
-                goal = generate_new_goal(args.env_params)
+                goal = generate_new_goal(args.env_params, validation=True)
                 episode_memory = ReplayMemory(env.max_steps)  # Size of memory should be length of episode
                 episode_reward = 0.
                 collisions_per_episode = 0
@@ -71,16 +70,16 @@ def train(args, agent, env, evaluate, debug=False):
                     action_hist.append(action)
 
                     # Execute the action
-                    observation2, reward, done, info = env.step(action, goal)
+                    observation2, reward, done, info, collision = env.step(action, goal)
                     observation2 = deepcopy(observation2)
 
                     # For performance visualization, we compute the % of collisions
-                    if reward == env.collision_cost:
+                    if collision:
                         collisions_per_episode += 1
                     elif reward == env.goal_reward:
                         succesful_transitions_episode += 1
                         reached_goals.append(goal)
-                        if observation[3:5] != observation2[3:5]:
+                        if observation[6:] != observation2[6:]:
                             succesful_trans_with_action += 1
 
                     # Insert into memory replay
@@ -99,8 +98,8 @@ def train(args, agent, env, evaluate, debug=False):
                 # NOTE: This needs to be tested. It is a replacement for the goal generation code below
                 counter = 0
                 for transition in episode_memory.memory:
-                    if transition[0][3:5] != transition[3][3:5]:
-                        new_goal = transition[3][3:5]
+                    if transition[0][6:] != transition[3][6:]:
+                        new_goal = transition[3][6:]
                         new_reward = env.estimate_new_reward(transition[3],new_goal,transition[4])
                         agent.memory.push(transition[0], new_goal, transition[2], transition[3], new_reward, transition[5])
 
@@ -111,7 +110,7 @@ def train(args, agent, env, evaluate, debug=False):
                     else:
                         if counter < len(episode_memory.memory)*0.1:
                             counter += 1
-                            new_goal = transition[3][3:5]
+                            new_goal = transition[3][6:]
                             new_reward = env.estimate_new_reward(transition[3],new_goal,transition[4])
                             agent.memory.push(transition[0], new_goal, transition[2], transition[3], new_reward, transition[5])
 
@@ -251,8 +250,8 @@ def test(args, agent, env, goal):
     # start episode
     done = False
     while not done:
-        action = agent.select_action(observation, goal, decay_epsilon=False)
-        observation2, reward, done, info = env.step(action, goal)
+        action = agent.select_action(observation, goal)
+        observation2, reward, done, info, collision = env.step(action, goal)
         observation2 = deepcopy(observation2)
 
         agent.observe(goal, reward, observation2, done)
@@ -262,7 +261,7 @@ def test(args, agent, env, goal):
         observation = deepcopy(observation2)
 
     prYellow('Reporting Validation Reward :{}'.format(episode_reward))
-    prYellow('Goal: {} | Final state: {}'.format(goal,observation[3:5]))
+    prYellow('Goal: {} | Final state: {}'.format(goal,observation[6:]))
 
     env.save_scene(args.root_dir +'/test_scenes/test1.prscene')
 
