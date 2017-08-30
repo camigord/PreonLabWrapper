@@ -1,87 +1,29 @@
-from __future__ import absolute_import
-from __future__ import division
 import numpy as np
 import os
-import visdom
 import sys
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
-from utils.util import *
-from utils.logger import loggerConfig
-
-class Params(object):
+class AgentParams():  # hyperparameters for drl agents
     def __init__(self):
-
-        self.root_dir    = os.getcwd()
-
-        # training signature
-        self.visdom_port = 8098         # Should be the same port that was used when starting server
-        self.visualize = True           # Create Visdom instance
-
-        # training configuration
-        self.mode        = 1            # 1(train) | 2(test model_file)
-        self.continue_training = True   # Continues training if a model already exists, otherwise starts from 0
-
-        self.seed        = 123
-
-        self.use_cuda           = False   # Not used
-        self.dtype              = torch.FloatTensor
-
-        # model files
-        self.model_dir  = self.root_dir + "/models"
-        self.load_model = False
-
-        if (self.continue_training or self.mode == 2) and (os.path.exists(self.model_dir + "/actor.pkl") and os.path.exists(self.model_dir + "/critic.pkl")):
-            self.load_model  = True
-        elif self.mode == 2:
-            prRed("Pre-Trained model does not exist, Testing aborted!!!")
-            sys.exit()
-
-        if self.visualize and self.mode==1:
-            self.vis = visdom.Visdom(port=self.visdom_port)
-
-class AgentParams(Params):  # hyperparameters for drl agents
-    def __init__(self):
-        super(AgentParams, self).__init__()
-
-        # optimizer
-        self.optim            = optim.Adam
-
-        self.number_states    = 8        # Pos_x, pos_y, theta, vel_x, vel_y, vel_t, poured_volume, spilled_volume
-        self.weight_decay     = 0.01     # L2 regularization weight decay
 
         # hyperparameters
-        self.batch_size       = 128      # batch size during training
-        self.rm_size          = 1000000  # memory replay maximum size
-        self.gamma            = 0.98     # Discount factor
-        self.lr               = 0.001    # Learning rate for critic
-        self.prate            = 0.0001   # Learning rate for actor
+        self.batch_size       = 64       # batch size during training
+        self.rm_size          = 1000000    # memory replay maximum size
+        self.gamma            = 0.99     # Discount factor
+        self.critic_lr        = 0.001    # Learning rate for critic
+        self.actor_lr         = 0.0001   # Learning rate for actor
 
-        self.criterion        = nn.MSELoss()
+        self.tau              = 0.001    # moving average for target network
 
-        self.tau              = 0.05     # moving average for target network
-        self.epsilon          = 0.8      # Random action 20% of the time
-        self.noise_std        = 0.05     # Add noise with 5% standard deviation to actions
-
-        self.epochs           = 200      # Number of training epochs
-        self.cycles           = 50       # Length of an epoch
-        self.ep_per_cycle     = 5        # Number of episodes to run per cycle
-        self.opt_steps        = 20       # Optimization steps after each cycle
-        self.k_goals          = 1        # Number of additional goals to sample and add to replay memory
-
-        self.validate_steps   = 2        # How many episodes to test and report performance
+        self.k_goals          = 4        # Number of additional goals to sample and add to replay memory
+        self.valid_freq       = 100
 
 class EnvParams():          # Settings for simulation environment
     def __init__(self):
-        self.path             = "scene1.prscene"  # Path to the PreonLab scene
         self.step_cost        = -0.5              # Reward when goal is not reached, but no collision happens
         self.collision_cost   = -1.0              # Reward when collision is detected
         self.goal_reward      = 0.0               # Reward when reaching the goal
         self.max_time         = 20.0              # Maximum length of an episode in seconds
-        self.goal_threshold   = 25.0              # Max volume difference for goal to be considered achieved in milliliters
+        self.goal_threshold   = 15.0              # Max volume difference for goal to be considered achieved in milliliters
 
         # NOTE: these 2 may not be required
         self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
@@ -96,10 +38,17 @@ class EnvParams():          # Settings for simulation environment
         self.max_y            = 20.0
         self.max_volume       = 468.0             # Maximum volume to pour in milliliters
 
-class Options(Params):
+        #self.goal_threshold   = 25.0
+        self.path             = "scene1.prscene"  # Path to the PreonLab scene
+        #self.path             = "scene2.prscene"    # Scene 2 starts with 364ml
+        #self.path             = "scene3.prscene"    # Scene 3 starts with 208ml
+
+class Options():
     agent_params  = AgentParams()
     env_params = EnvParams()
-
-    log_name    = agent_params.root_dir + "/logs/log_file.log"
-    logger      = loggerConfig(log_name, verbose=0)
-    logger.warning("<===================================>")
+    train = True
+    continue_training=True
+    test_goal = [50, 0]
+    save_scene_to_path = '/saved_scenes/scene2_test' + str(test_goal[0]) + 'ml.prscene'
+    summary_dir = './new_results/tboard_ddpg'
+    save_dir = './new_results/model_ddpg'

@@ -11,11 +11,13 @@ class Preon_env():
         self.goal_threshold = args.goal_threshold
         self.max_time = args.max_time
 
+        '''
         self.max_lin_vel = args.max_lin_vel
         self.max_ang_vel = args.max_ang_vel
 
         self.max_lin_disp = args.max_lin_disp
         self.max_ang_disp = args.max_ang_disp
+        '''
 
         self.min_x = args.min_x
         self.max_x = args.max_x
@@ -35,7 +37,7 @@ class Preon_env():
 
         return state, self.env.get_info()
 
-    def predict_collision(self,vel_x, vel_y, vel_theta):
+    def predict_collision(self, vel_x, vel_y, vel_theta):
         # Get current position of both cups
         cup1_pos, cup1_angle, cup2_pos, cup2_angle = self.env.get_cups_location()
 
@@ -56,7 +58,7 @@ class Preon_env():
         else:
             return False
 
-    def is_out_of_range(self,vel_x, vel_y):
+    def is_out_of_range(self, vel_x, vel_y):
         cup1_pos, cup1_angle, _, _ = self.env.get_cups_location()
         # Estimate future position based on current pos and velocities
         cup1_pos += self.time_per_frame * np.array([vel_x, vel_y])
@@ -66,16 +68,15 @@ class Preon_env():
         else:
             return False
 
-    def step(self,action, goal):
+    def step(self, action, goal):
         '''
         action is the position relative to current location where cup1 should end after running this frame.
         '''
         collision = False
-        # Calculate desired displacement based on scales (this is a displacement in cm or degrees per frame)
-        delta_x, delta_y, delta_theta = action * [self.max_lin_disp, self.max_lin_disp, self.max_ang_disp]
+        delta_x, delta_y, delta_theta = action
 
         # The required velocities in (cm/s or degree/s) are equal to the displacement time the number of frames per second
-        vel_x, vel_y, vel_theta = self.frame_rate * np.array([delta_x, delta_y,delta_theta])
+        vel_x, vel_y, vel_theta = self.frame_rate * np.array([delta_x, delta_y, delta_theta])
 
         '''
         vel_x, vel_y, vel_theta = action * [self.max_lin_vel, self.max_lin_vel, self.max_ang_vel]
@@ -92,7 +93,7 @@ class Preon_env():
         # Get environment state
         state = self.env.get_state()
 
-        # Add normalized velocities to state: velocities happen to be the same as input action after normalizing
+        # Add velocities to state
         state = list(state)
         state = state[0:3] + list(action) + state[3:]
 
@@ -109,9 +110,9 @@ class Preon_env():
             if self.was_goal_reached(state, goal):
                 reward = self.goal_reward
             else:
-                #reward = self.step_cost
+                reward = self.step_cost
                 # NOTE: Trying same reward for collision and step
-                reward = self.collision_cost
+                #reward = self.collision_cost
 
         return state, reward, terminal, self.env.get_info(), collision
 
@@ -135,13 +136,13 @@ class Preon_env():
          - state is the next_state after performing an action in the current transition
         '''
         # NOTE: Trying same reward for collision and step
-        #if reward != self.collision_cost:
-        if self.was_goal_reached(state, goal):
-            reward = self.goal_reward
-        else:
-            #reward = self.step_cost
-            # NOTE: Trying same reward for collision and step
-            reward = self.collision_cost
+        if reward != self.collision_cost:
+            if self.was_goal_reached(state, goal):
+                reward = self.goal_reward
+            else:
+                reward = self.step_cost
+                # NOTE: Trying same reward for collision and step
+                #reward = self.collision_cost
         return reward
 
     def get_elapsed_time(self):
