@@ -22,8 +22,8 @@ class EnvParams():          # Settings for simulation environment
         self.step_cost        = -0.5              # Reward when goal is not reached, but no collision happens
         self.collision_cost   = -1.0              # Reward when collision is detected
         self.goal_reward      = 0.0               # Reward when reaching the goal
-        self.max_time         = 20.0              # Maximum length of an episode in seconds
-        self.goal_threshold   = 15.0              # Max volume difference for goal to be considered achieved in milliliters
+        self.max_time         = 10.0              # Maximum length of an episode in seconds
+        self.goal_threshold   = 25.0              # Max volume difference for goal to be considered achieved in milliliters
 
         # NOTE: these 2 may not be required
         self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
@@ -46,9 +46,10 @@ class EnvParams():          # Settings for simulation environment
 class Options():
     agent_params  = AgentParams()
     env_params = EnvParams()
-    train = True
+    train = False
     continue_training=True
-    test_goal = [50, 0]
-    save_scene_to_path = '/saved_scenes/scene2_test' + str(test_goal[0]) + 'ml.prscene'
-    summary_dir = './new_results/tboard_ddpg'
-    save_dir = './new_results/model_ddpg'
+    test_goal = [200, 0]
+    test_height = 9
+    save_scene_to_path = '/saved_scenes/scene_test123'+str(test_height)+'_' + str(test_goal[0]) + 'ml.prscene'
+    summary_dir = './results/tboard_ddpg'
+    save_dir = './results/model_ddpg'

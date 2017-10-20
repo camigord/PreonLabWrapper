@@ -7,6 +7,7 @@ import tflearn
 import sys
 import os
 
+from networks import ActorNetwork, CriticNetwork
 from replay_buffer import ReplayBuffer
 
 # ==========================
@@ -17,8 +18,7 @@ opt = Options()
 
 # Max training steps
 MAX_EPISODES = 50000
-# Max episode length
-MAX_EP_STEPS = 1000
+
 # Base learning rate for the Actor network
 ACTOR_LEARNING_RATE = opt.agent_params.actor_lr
 # Base learning rate for the Critic Network
@@ -40,219 +40,6 @@ RANDOM_SEED = 1256
 BUFFER_SIZE = opt.agent_params.rm_size
 MINIBATCH_SIZE = opt.agent_params.batch_size
 VALID_FREQ = opt.agent_params.valid_freq
-
-# ===========================
-#   Actor and Critic DNNs
-# ===========================
-
-
-class ActorNetwork(object):
-    """
-    Input to the network is the state, output is the action
-    under a deterministic policy.
-
-    The output layer activation is a tanh to keep the action
-    between -2 and 2
-    """
-
-    def __init__(self, sess, state_dim, action_dim, goal_dim, learning_rate, tau, args):
-        self.sess = sess
-        self.s_dim = state_dim
-        self.a_dim = action_dim
-        self.goal_dim = goal_dim
-        self.learning_rate = learning_rate
-        self.tau = tau
-        self.args = args
-
-        # Actor Network
-        self.inputs, self.goal, self.out, self.scaled_out = self.create_actor_network()
-        self.network_params = tf.trainable_variables()
-
-        # Target Network
-        self.target_inputs, self.target_goal, self.target_out, self.target_scaled_out = self.create_actor_network()
-        self.target_network_params = tf.trainable_variables()[len(self.network_params):]
-
-        # Op for periodically updating target network with online network weights
-        self.update_target_network_params = \
-            [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) +
-                                                  tf.multiply(self.target_network_params[i], 1. - self.tau))
-                for i in range(len(self.target_network_params))]
-
-        # This gradient will be provided by the critic network
-        self.action_gradient = tf.placeholder(tf.float32, [None, self.a_dim])
-
-        # Combine the gradients here
-        # Partial derivatives of scaled_out w.r.t network_params. action_gradient holds the initial gradients for each scaled_out
-        self.actor_gradients = tf.gradients(self.scaled_out, self.network_params, -self.action_gradient)
-
-        # Optimization Op
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).\
-            apply_gradients(zip(self.actor_gradients, self.network_params))
-
-        self.num_trainable_vars = len(self.network_params) + len(self.target_network_params)
-
-    def create_actor_network(self):
-        inputs = tflearn.input_data(shape=[None, self.s_dim])
-        goal = tflearn.input_data(shape=[None, self.goal_dim])
-
-        net_state = tflearn.fully_connected(inputs, 400, activation='relu')
-        net_goal = tflearn.fully_connected(goal, 200, activation='relu')
-
-        # Use two temp layers to get the corresponding weights and biases
-        t1 = tflearn.fully_connected(net_state, 300)
-        t2 = tflearn.fully_connected(net_goal, 300)
-
-        net = tflearn.activation(tf.matmul(net_state, t1.W) + tf.matmul(net_goal, t2.W) + t2.b, activation='relu')
-        net = tflearn.fully_connected(net, 300, activation='relu')
-
-        # Final layer weights are init to Uniform[-3e-3, 3e-3]
-        w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
-        out = tflearn.fully_connected(net, self.a_dim, activation='tanh', weights_init=w_init)
-        # Scale output to -action_bound to action_bound
-        scaled_out = tf.multiply(out, [self.args.max_lin_disp, self.args.max_lin_disp, self.args.max_ang_disp])
-        return inputs, goal, out, scaled_out
-
-    def train(self, inputs, goals, a_gradient):
-        self.sess.run(self.optimize, feed_dict={
-            self.inputs: inputs,
-            self.goal: goals,
-            self.action_gradient: a_gradient
-        })
-
-    def predict(self, inputs, goals):
-        return self.sess.run(self.scaled_out, feed_dict={
-            self.inputs: inputs,
-            self.goal: goals,
-        })
-
-    def predict_target(self, inputs, goals):
-        return self.sess.run(self.target_scaled_out, feed_dict={
-            self.target_inputs: inputs,
-            self.target_goal: goals,
-        })
-
-    def update_target_network(self):
-        self.sess.run(self.update_target_network_params)
-
-    def get_num_trainable_vars(self):
-        return self.num_trainable_vars
-
-    def restore_params(self, parameters):
-        restore_network = [self.network_params[i].assign(parameters[i]) for i in range(len(self.network_params))]
-        restore_target = [self.target_network_params[i].assign(parameters[i+len(self.network_params)]) for i in range(len(self.target_network_params))]
-        self.sess.run([restore_network, restore_target])
-
-
-class CriticNetwork(object):
-    """
-    Input to the network is the state and action, output is Q(s,a).
-    The action must be obtained from the output of the Actor network.
-
-    """
-
-    def __init__(self, sess, state_dim, action_dim, goal_dim, learning_rate, tau, num_actor_vars, args):
-        self.sess = sess
-        self.s_dim = state_dim
-        self.a_dim = action_dim
-        self.goal_dim = goal_dim
-        self.learning_rate = learning_rate
-        self.tau = tau
-        self.args = args
-        self.num_actor_vars = num_actor_vars
-
-        # Create the critic network
-        self.inputs, self.goals, self.action, self.out = self.create_critic_network()
-        self.network_params = tf.trainable_variables()[num_actor_vars:]
-
-        # Target Network
-        self.target_inputs, self.target_goals, self.target_action, self.target_out = self.create_critic_network()
-        self.target_network_params = tf.trainable_variables()[(len(self.network_params) + num_actor_vars):]
-
-        # Op for periodically updating target network with online network weights with regularization
-        self.update_target_network_params = \
-            [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) + tf.multiply(self.target_network_params[i], 1. - self.tau))
-                for i in range(len(self.target_network_params))]
-
-        # Network target (y_i)
-        self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
-        self.clipped_value = tf.clip_by_value(self.predicted_q_value, -100.0, 0.0)
-
-        # Define loss and optimization Op
-        self.loss = tflearn.mean_square(self.clipped_value, self.out)
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
-
-        # Get the gradient of the network w.r.t. the action.
-        # For each action in the minibatch (i.e., for each x in xs),
-        # this will sum up the gradients of each critic output in the minibatch
-        # w.r.t. that action. Each output is independent of all actions except for one.
-        self.action_grads = tf.gradients(self.out, self.action)
-
-        self.num_trainable_vars = len(self.network_params) + len(self.target_network_params)
-
-    def create_critic_network(self):
-        inputs = tflearn.input_data(shape=[None, self.s_dim])
-        goals = tflearn.input_data(shape=[None, self.goal_dim])
-        action = tflearn.input_data(shape=[None, self.a_dim])
-
-        net_state = tflearn.fully_connected(inputs, 400, activation='relu', regularizer='L2')
-        net_goal = tflearn.fully_connected(goals, 200, activation='relu', regularizer='L2')
-
-        # Add the action tensor in the 2nd hidden layer
-        # Use two temp layers to get the corresponding weights and biases
-        t1 = tflearn.fully_connected(net_state, 300, regularizer='L2')
-        t2 = tflearn.fully_connected(net_goal, 300, regularizer='L2')
-        t3 = tflearn.fully_connected(action, 300, regularizer='L2')
-
-        net = tflearn.activation(tf.matmul(net_state, t1.W) + tf.matmul(net_goal, t2.W) + \
-                                 tf.matmul(action, t3.W) + t3.b, activation='relu')
-
-        net = tflearn.fully_connected(net, 200, activation='relu', regularizer='L2')
-
-        # linear layer connected to 1 output representing Q(s,a)
-        # Weights are init to Uniform[-3e-3, 3e-3]
-        w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
-        out = tflearn.fully_connected(net, 1, weights_init=w_init, regularizer='L2')
-        return inputs, goals, action, out
-
-    def train(self, inputs, goals, action, predicted_q_value):
-        return self.sess.run([self.out, self.optimize, self.loss], feed_dict={
-            self.inputs: inputs,
-            self.goals: goals,
-            self.action: action,
-            self.predicted_q_value: predicted_q_value
-        })
-
-    def predict(self, inputs, goals, action):
-        return self.sess.run(self.out, feed_dict={
-            self.inputs: inputs,
-            self.goals: goals,
-            self.action: action
-        })
-
-    def predict_target(self, inputs, goals, action):
-        return self.sess.run(self.target_out, feed_dict={
-            self.target_inputs: inputs,
-            self.target_goals: goals,
-            self.target_action: action
-        })
-
-    def action_gradients(self, inputs, goals, actions):
-        return self.sess.run(self.action_grads, feed_dict={
-            self.inputs: inputs,
-            self.goals: goals,
-            self.action: actions
-        })
-
-    def update_target_network(self):
-        self.sess.run(self.update_target_network_params)
-
-    def get_num_trainable_vars(self):
-        return self.num_trainable_vars
-
-    def restore_params(self, parameters):
-        restore_network = [self.network_params[i].assign(parameters[i+self.num_actor_vars]) for i in range(len(self.network_params))]
-        restore_target = [self.target_network_params[i].assign(parameters[i+self.num_actor_vars+len(self.network_params)]) for i in range(len(self.target_network_params))]
-        self.sess.run([restore_network, restore_target])
 
 # ===========================
 #   Tensorflow Summary Ops
@@ -295,16 +82,16 @@ def build_summaries():
     return train_ops, valid_ops, training_vars, valid_vars
 
 
-def generate_new_goal(args, step, validation=False):
+def generate_new_goal(args, step, init_volume, validation=False):
     if validation:
         possible_values = [50,100,150,200,250,300,350,400,450]
-        desired_poured_vol = possible_values[int(step%len(possible_values))]
-        #desired_poured_vol = np.random.choice([50,100,150,200,250,300,350,400,450])
+        #desired_poured_vol = possible_values[int(step%len(possible_values))]
+        desired_poured_vol = np.random.choice([x for x in possible_values if x <= init_volume])
         desired_spilled_vol = 0.0
     else:
-        desired_poured_vol = np.random.randint(0,args.max_volume)
+        desired_poured_vol = np.random.randint(0,init_volume+1)
         # We can only spill so much as available liquid remains
-        desired_spilled_vol = np.random.randint(0,args.max_volume - desired_poured_vol)
+        desired_spilled_vol = np.random.randint(0,init_volume - desired_poured_vol)
 
     desired_poured_vol_norm = (desired_poured_vol - args.max_volume/2.0) / (args.max_volume/2.0)
     desired_spilled_vol_norm = (desired_spilled_vol - args.max_volume/2.0) / (args.max_volume/2.0)
@@ -348,8 +135,9 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
     for i in range(MAX_EPISODES):
         current_step = sess.run(global_step)
 
-        goal = generate_new_goal(opt.env_params, current_step, validation=True)
-        s, info = env.reset()
+        init_height = np.random.randint(1, 11)
+        s, info = env.reset(init_height)
+        goal = generate_new_goal(opt.env_params, current_step, int(env.env.init_particles), validation=True)
 
         ep_reward = 0
         ep_ave_max_q = 0
@@ -357,7 +145,7 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
         ep_collisions = 0
         ep_extra_goals = 0
 
-        for j in range(MAX_EP_STEPS):
+        for j in range(env.max_steps+1):
 
             # Added exploration noise
             input_s = np.reshape(s, (1, actor.s_dim))
@@ -374,9 +162,9 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
             '''
             # NOTE: Add extra experiences to memory
             # 1) Adding only those transitions where liquid was poured/spilled
-            if s2[6:] != s[6:]:
+            if s2[6:8] != s[6:8]:
                 ep_extra_goals += 1
-                new_goal = s2[6:]
+                new_goal = s2[6:8]
                 new_reward = env.estimate_new_reward(s2,new_goal,r)
                 replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(new_goal, (actor.goal_dim,)),
                                   np.reshape(a, (actor.a_dim,)), new_reward, terminal, np.reshape(s2, (actor.s_dim,)))
@@ -417,7 +205,7 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
             ep_collisions += int(collision)
 
             if terminal:
-                episode_spillage = s[-1]
+                episode_spillage = s[7]
 
                 summary_str = sess.run(train_ops, feed_dict={
                     training_vars[0]: ep_reward,
@@ -435,8 +223,9 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
                     valid_terminal = False
                     valid_r = 0
                     valid_collision = 0
-                    s, info = env.reset()
-                    goal = generate_new_goal(opt.env_params, validation_step, validation=True)
+                    init_height = np.random.randint(1, 11)
+                    s, info = env.reset(init_height)
+                    goal = generate_new_goal(opt.env_params, validation_step, int(env.env.init_particles), validation=True)
                     while not valid_terminal:
                         input_s = np.reshape(s, (1, actor.s_dim))
                         input_g = np.reshape(goal, (1, actor.goal_dim))
@@ -454,7 +243,7 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
                     valid_percentage_poured = valid_poured_vol*100 / float(valid_poured_goal)
 
                     # Compute the spillage in milliliters
-                    valid_spillage = get_value_in_milliliters(opt.env_params,s[-1])
+                    valid_spillage = get_value_in_milliliters(opt.env_params,s[7])
 
                     summary_valid = sess.run(valid_ops, feed_dict={
                         valid_vars[0]: valid_r,
@@ -496,12 +285,13 @@ def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal):
     desired_spilled_vol_norm = (test_goal[1] - opt.env_params.max_volume/2.0) / (opt.env_params.max_volume/2.0)
     norm_test_goal = [desired_poured_vol_norm, desired_spilled_vol_norm]
 
-    s, info = env.reset()
+    init_height = opt.test_height
+    s, info = env.reset(init_height)
 
     ep_reward = 0
     ep_collisions = 0
 
-    for j in range(MAX_EP_STEPS):
+    for j in range(env.max_steps+1):
         # Added exploration noise
         input_s = np.reshape(s, (1, actor.s_dim))
         input_g = np.reshape(norm_test_goal, (1, actor.goal_dim))
@@ -514,7 +304,7 @@ def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal):
         ep_collisions += int(collision)
 
         if terminal:
-            episode_spillage = s[-1]
+            episode_spillage = s[7]
             break
 
     print('----------------------------------------------------')
@@ -544,7 +334,7 @@ def main(_):
         np.random.seed(RANDOM_SEED)
         tf.set_random_seed(RANDOM_SEED)
 
-        state_dim = 8
+        state_dim = 9
         action_dim = 3
         goal_dim = 2
 

@@ -2,7 +2,11 @@ import preonpy
 import numpy as np
 
 class PreonScene():
-    def __init__(self, args):
+    def __init__(self, args, source_height = 10):
+        '''
+        source_height represents the ammount of liquid in the first cup at the beginning of the episode. The height should be
+        a value between 1cm and 10cm.
+        '''
         self.args = args
         self.path = args.path
         self.min_x = args.min_x
@@ -11,6 +15,7 @@ class PreonScene():
         self.max_y = args.max_y
         self.max_volume = args.max_volume
         self.frames_per_action = 1              # How many frames to run before selecting a new action
+        self.init_height = source_height
 
         # Loading the scene
         preonpy.show_progressbar = False
@@ -23,6 +28,7 @@ class PreonScene():
         self.cup1 = self.scene.find_object("Cup1")
         self.cup2 = self.scene.find_object("Cup2")
         self.Box = self.scene.find_object("BoxDomain_1")
+        self.Source = self.scene.find_object("VolumeSource_1")
 
         # Get simulation parameters
         self.frame_rate = self.scene.__getitem__("simulation frame rate")
@@ -35,6 +41,9 @@ class PreonScene():
         init_pos = np.array(self.cup1.__getitem__("position"))
         init_frames = 2
 
+        # Set initial volume
+        self.Source.__setitem__("scale", [0.1, 0.1, self.init_height/100])
+
         self.trajectorie_angles = self._set_keyframes([self.cup1, self.sensor_cup1],[],0,init_angle,'euler angles theta')
         self.trajectorie_posx = self._set_keyframes([self.cup1, self.sensor_cup1],[],0,init_pos[0],'position x')
         self.trajectorie_posy = self._set_keyframes([self.cup1, self.sensor_cup1],[],0,init_pos[2],'position z')
@@ -45,7 +54,6 @@ class PreonScene():
         # Run initial frames to allow liquid to settle down
         self.scene.simulate(0, init_frames)
         self.current_frame = init_frames
-        #self.simulate_frame(num_frames=2)
 
         # Get some values from the simulation
         self.init_particles = self.scene.get_statistic("Fluid Particles", self.scene.elapsed_time)
@@ -138,12 +146,3 @@ class PreonScene():
     @property
     def current_time(self):
         return self.scene.elapsed_time
-
-
-    '''
-    def simulate_frame(self,num_frames=1):
-        for frame in range(num_frames):
-            # Simulates one frame considering the frame rate and the time step values defined by the scene
-            for i in range(self.steps_per_frame):
-                self.scene.simulate_step()
-    '''

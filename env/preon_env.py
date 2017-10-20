@@ -25,15 +25,19 @@ class Preon_env():
         self.max_y = args.max_y
         self.max_volume = args.max_volume
 
-    def reset(self):
-        self.env = PreonScene(self.args)
+    def reset(self, source_height = 10):
+        self.env = PreonScene(self.args, source_height)
         self.time_per_frame = self.env.timestep_per_frame
         self.frame_rate = self.env.frame_rate
         self.max_steps = int(self.max_time * self.frame_rate)
         self.current_step = 0
 
         state = list(self.env.get_state())
+
+        self.last_state = state[3:]         # Poured and spilled volumes in last step - initially it is just the starting values
+        flow_rate = 0.0
         state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:]
+        state.append(flow_rate)
 
         return state, self.env.get_info()
 
@@ -93,9 +97,15 @@ class Preon_env():
         # Get environment state
         state = self.env.get_state()
 
-        # Add velocities to state
         state = list(state)
+
+        # Estimate flow_rate
+        flow_rate = np.sum(np.array(state[3:]) - np.array(self.last_state))
+        self.last_state = state[3:]
+
+        # Add velocities and flow_rate to state
         state = state[0:3] + list(action) + state[3:]
+        state.append(flow_rate)
 
         # Determine if the episode is over
         if self.current_step == self.max_steps or self.get_elapsed_time() >= self.max_time:
@@ -121,7 +131,7 @@ class Preon_env():
     def was_goal_reached(self, state, goal):
         # Values are normalized, we need to convert them back into milliliters
         goal = (np.array(goal) * (self.max_volume/2.0)) + self.max_volume/2.0
-        current_vol_state = (np.array(state[6:]) * (self.max_volume/2.0)) + self.max_volume/2.0
+        current_vol_state = (np.array(state[6:8]) * (self.max_volume/2.0)) + self.max_volume/2.0
 
         dist_to_goal = np.absolute(current_vol_state - goal) - self.goal_threshold
         if np.sum(np.maximum(dist_to_goal,0)) > 0:
