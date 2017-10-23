@@ -1,14 +1,24 @@
 import preonpy
 import numpy as np
+import glob
+import os
+
+# Coordinates of the destination container opening (x, z and radius in cm + minimum volume source height in cm)
+# The minimum source volume height quarantees that initial volume is sufficient
+coordinates = {'scene0': [15,10,5, 22],
+               'scene1': [14,10,4, 10],
+               'scene2': [13,20,3, 11],
+               'scene3': [13,12,3, 7],
+               'scene4': [15,14,4, 22],
+               'scene5': [13.5,5,3.5, 4]}
 
 class PreonScene():
-    def __init__(self, args, source_height = 10):
+    def __init__(self, args, source_height = 22):
         '''
         source_height represents the ammount of liquid in the first cup at the beginning of the episode. The height should be
-        a value between 1cm and 10cm.
+        a value lower than 22cm still capable of filling the respective container.
         '''
         self.args = args
-        self.path = args.path
         self.min_x = args.min_x
         self.max_x = args.max_x
         self.min_y = args.min_y
@@ -17,9 +27,15 @@ class PreonScene():
         self.frames_per_action = 1              # How many frames to run before selecting a new action
         self.init_height = source_height
 
+        # Selecting a random scene
+        scene_paths = glob.glob(os.getcwd() + "/training_scenes/*.prscene")
+        scene_paths.sort()
+        scene_path = np.random.choice(scene_paths)
+        scene_name = scene_path.split("/")[1].split(".")[0]
+
         # Loading the scene
         preonpy.show_progressbar = False
-        self.scene = preonpy.Scene(self.path)
+        self.scene = preonpy.Scene(scene_path)
 
         # Load scene objects
         self.solver = self.scene.find_object("PreonSolver_1")
@@ -35,6 +51,26 @@ class PreonScene():
         self.timestep_per_frame = 1.0 / self.frame_rate
         #self.time_step = self.solver.__getitem__("timestep")
         #self.steps_per_frame = int((1/self.frame_rate) / self.time_step)
+
+        # Randomly relocate the destination container
+        ring_coordinates = coordinates[scene_name]
+        real_radius = ring_coordinates[0] - 10   # 10 cm is the distance to right boundarie where objects are originally placed
+
+        cup2_pos = np.round(np.array(self.cup2.__getitem__("position"))  *100, decimals = 2) # x,y,z in cm
+        sensor_cup2_pos = np.round(np.array(self.sensor_cup2.__getitem__("position"))  *100, decimals = 2) # x,y,z in cm
+        max_delta_x = 30 - real_radius - cup2_pos[0]
+        max_delta_z = 20 - ring_coordinates[1]      # Top boundary minus container's height
+
+        delta_x = np.random.randint(0, max_delta_x+1)   # Pick a random displacement in each direction
+        delta_z = np.random.randint(0, max_delta_z+1)
+
+        new_pos = (cup2_pos + [delta_x, 0, delta_z]) / 100      # Relocate destination container and sensor volume
+        cup2.__setitem__("position", new_pos)
+        new_pos = (sensor_cup2_pos + [delta_x, 0, delta_z]) / 100
+        sensor_cup2.__setitem__("position", new_pos)
+
+        # Update ring coordinates
+        self.ring_location = [ring_coordinates[0]+delta_x, ring_coordinates[1]+delta_z, ring_coordinates[2]]
 
         # Set trajectorie points for the first 2 frames
         init_angle = np.array(self.cup1.__getitem__("euler angles"))[1]

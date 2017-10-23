@@ -22,7 +22,7 @@
             <object type="Box domain" uid="1056" name="BoxDomain_1"/>
             <object type="Volume sensor" uid="1057" name="Sensor_Cup2"/>
             <object type="Volume Source" uid="1058" name="VolumeSource_1"/>
-            <object type="Mesh" uid="1062" name="cup5"/>
+            <object type="Mesh" uid="1062" name="Cup2"/>
         </objects>
         <slots/>
         <connections>
@@ -82,7 +82,7 @@
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="invisible"/>
                 <property name="position" x="0.634147" y="-0.885933" z="0.587351"/>
-                <property name="orientation" phi="71.4162" theta="-4.98889e-6" psi="32.8564"/>
+                <property name="orientation" phi="71.4162" theta="-1.57427e-5" psi="32.8564"/>
                 <property name="scale" x="1.5" y="1.5" z="1.5"/>
                 <property name="pivot" x="0" y="0" z="0"/>
                 <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
@@ -1029,23 +1029,23 @@
         </cameraView_3>
         <connection_node_position>
             <data key="503" data="0 300"/>
-            <data key="501" data="0 100"/>
-            <data key="702" data="18.3649 493.266"/>
-            <data key="502" data="0 200"/>
-            <data key="1058" data="1050 200"/>
-            <data key="1062" data="1050 200"/>
-            <data key="1051" data="558.179 -186.072"/>
-            <data key="1057" data="1050 100"/>
-            <data key="1028" data="366.867 -160.511"/>
-            <data key="600" data="0 400"/>
             <data key="800" data="152.516 78.7403"/>
-            <data key="500" data="0 0"/>
-            <data key="1053" data="1050 0"/>
-            <data key="1056" data="1050 100"/>
-            <data key="1041" data="677.3 -5.25438"/>
-            <data key="1040" data="700 400"/>
             <data key="700" data="-8.13616 -95.7271"/>
             <data key="1054" data="1050 100"/>
+            <data key="1057" data="1050 100"/>
+            <data key="1040" data="700 400"/>
+            <data key="1028" data="366.867 -160.511"/>
+            <data key="1051" data="558.179 -186.072"/>
+            <data key="500" data="0 0"/>
+            <data key="1062" data="1050 200"/>
+            <data key="1053" data="1050 0"/>
+            <data key="1056" data="1050 100"/>
+            <data key="1058" data="1050 200"/>
+            <data key="501" data="0 100"/>
+            <data key="502" data="0 200"/>
+            <data key="702" data="18.3649 493.266"/>
+            <data key="1041" data="677.3 -5.25438"/>
+            <data key="600" data="0 400"/>
         </connection_node_position>
         <gui>
             <data key="osdPosition" data="4"/>

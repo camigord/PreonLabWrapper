@@ -22,7 +22,7 @@
             <object type="Box domain" uid="1056" name="BoxDomain_1"/>
             <object type="Volume sensor" uid="1057" name="Sensor_Cup2"/>
             <object type="Volume Source" uid="1058" name="VolumeSource_1"/>
-            <object type="Mesh" uid="1060" name="cup3"/>
+            <object type="Mesh" uid="1060" name="Cup2"/>
         </objects>
         <slots/>
         <connections>
@@ -81,8 +81,8 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="invisible"/>
-                <property name="position" x="0.437445" y="-1.01256" z="0.274964"/>
-                <property name="orientation" phi="87.2298" theta="1.08192e-6" psi="20.7332"/>
+                <property name="position" x="0.328346" y="-1.00403" z="0.528874"/>
+                <property name="orientation" phi="73.9776" theta="3.98859e-6" psi="15.4331"/>
                 <property name="scale" x="1.5" y="1.5" z="1.5"/>
                 <property name="pivot" x="0" y="0" z="0"/>
                 <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
@@ -94,8 +94,8 @@
                 <property name="startPosition" x="0" y="0" z="0"/>
                 <property name="acceleration" x="0" y="0" z="0"/>
                 <property name="startVelocity" x="0" y="0" z="0"/>
-                <property name="localRotationAxis" x="0.966589" y="0.176819" z="0.185582"/>
-                <property name="currentRotation" val="0.24771054089069366"/>
+                <property name="localRotationAxis" x="0.975566" y="0.132189" z="0.175492"/>
+                <property name="currentRotation" val="0.20929010212421417"/>
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
@@ -1029,23 +1029,23 @@
         </cameraView_3>
         <connection_node_position>
             <data key="1040" data="700 400"/>
-            <data key="503" data="0 300"/>
-            <data key="501" data="0 100"/>
-            <data key="1028" data="366.867 -160.511"/>
-            <data key="1053" data="1050 0"/>
-            <data key="500" data="0 0"/>
-            <data key="1058" data="1050 200"/>
-            <data key="502" data="0 200"/>
-            <data key="1060" data="1050 200"/>
-            <data key="1051" data="558.179 -186.072"/>
-            <data key="1057" data="1050 100"/>
-            <data key="1054" data="1050 100"/>
-            <data key="702" data="18.3649 493.266"/>
-            <data key="700" data="-8.13616 -95.7271"/>
-            <data key="600" data="0 400"/>
-            <data key="1041" data="677.3 -5.25438"/>
-            <data key="800" data="152.516 78.7403"/>
             <data key="1056" data="1050 100"/>
+            <data key="502" data="0 200"/>
+            <data key="800" data="152.516 78.7403"/>
+            <data key="501" data="0 100"/>
+            <data key="1057" data="1050 100"/>
+            <data key="1028" data="366.867 -160.511"/>
+            <data key="1051" data="558.179 -186.072"/>
+            <data key="500" data="0 0"/>
+            <data key="503" data="0 300"/>
+            <data key="1058" data="1050 200"/>
+            <data key="1053" data="1050 0"/>
+            <data key="1060" data="1050 200"/>
+            <data key="1054" data="1050 100"/>
+            <data key="600" data="0 400"/>
+            <data key="700" data="-8.13616 -95.7271"/>
+            <data key="1041" data="677.3 -5.25438"/>
+            <data key="702" data="18.3649 493.266"/>
         </connection_node_position>
         <gui>
             <data key="osdPosition" data="4"/>
