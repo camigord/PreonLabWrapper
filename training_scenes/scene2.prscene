@@ -23,6 +23,7 @@
             <object type="Volume sensor" uid="1057" name="Sensor_Cup2"/>
             <object type="Volume Source" uid="1058" name="VolumeSource_1"/>
             <object type="Mesh" uid="1059" name="Cup2"/>
+            <object type="Transform group" uid="1060" name="Cup1_Group"/>
         </objects>
         <slots/>
         <connections>
@@ -46,6 +47,8 @@
             <connect from="1055" to="1058" fromId="TriangleMesh" toId="TriangleMesh"/>
             <connect from="1058" to="1028" fromId="ParticleEmitter" toId="ParticleEmitter"/>
             <connect from="1059" to="1058" fromId="TriangleMesh" toId="TriangleMesh"/>
+            <connect from="1060" to="1053" fromId="Transform" toId="Transform"/>
+            <connect from="1060" to="1040" fromId="Transform" toId="Transform"/>
         </connections>
         <properties>
             <scene>
@@ -82,7 +85,7 @@
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="invisible"/>
                 <property name="position" x="0.373974" y="-1.04267" z="0.471278"/>
-                <property name="orientation" phi="77.4262" theta="-6.49686e-6" psi="17.1546"/>
+                <property name="orientation" phi="77.4262" theta="2.88336e-5" psi="17.1546"/>
                 <property name="scale" x="1.5" y="1.5" z="1.5"/>
                 <property name="pivot" x="0" y="0" z="0"/>
                 <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
@@ -427,7 +430,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.0005"/>
+                <property name="timestep" val="0.001"/>
                 <property name="cacheData" val="true"/>
                 <property name="rangeExclusively" val="false"/>
                 <property name="maximumParticleVBOSize" val="67108864"/>
@@ -435,7 +438,7 @@
                 <property name="spacing" val="0.005"/>
                 <property name="restDensity" val="998.2071"/>
                 <property name="queryNeighbors" val="Query_All"/>
-                <property name="maxTimestep" val="0.0005"/>
+                <property name="maxTimestep" val="0.001"/>
                 <property name="CFL" val="1"/>
                 <property name="cflViolationNumber" val="1"/>
                 <property name="onCFLViolation" val="DeleteParticles"/>
@@ -500,7 +503,7 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="smoothShaded"/>
-                <property name="position" x="0" y="0" z="0.21"/>
+                <property name="position" x="0" y="0" z="0.11"/>
                 <property name="orientation" phi="0" theta="0" psi="0"/>
                 <property name="scale" x="0.085" y="0.085" z="0.22"/>
                 <property name="pivot" x="0" y="0" z="0"/>
@@ -595,7 +598,7 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="smoothShaded"/>
-                <property name="position" x="0" y="0" z="0.1"/>
+                <property name="position" x="0" y="0" z="0"/>
                 <property name="orientation" phi="0" theta="0" psi="0"/>
                 <property name="scale" x="1" y="1" z="1"/>
                 <property name="pivot" x="0" y="0" z="0"/>
@@ -968,6 +971,37 @@
                 <property name="showCollisionShape" val="false"/>
                 <property name="shapeShrinkOffset" val="0"/>
             </object>
+            <object uid="1060">
+                <property name="osdPosition" val="Right"/>
+                <property name="isOsdExpanded" val="true"/>
+                <property name="consoleDebug" val="false"/>
+                <property name="statistics" val="false"/>
+                <property name="timings" val="false"/>
+                <property name="showOsdInVideo" val="true"/>
+                <property name="recordStatistics" val="true"/>
+                <property name="trackStatistics" val="true"/>
+                <property name="liveCsvExport" val="false"/>
+                <property name="behavior" val="active"/>
+                <property name="renderMode" val="smoothShaded"/>
+                <property name="position" x="0" y="0" z="0.1"/>
+                <property name="orientation" phi="0" theta="0" psi="0"/>
+                <property name="scale" x="1" y="1" z="1"/>
+                <property name="pivot" x="0" y="0" z="0"/>
+                <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
+                <property name="color" r="255" g="100" b="0" a="255"/>
+                <property name="positionControlMode" val="position"/>
+                <property name="orientationControlMode" val="eulerAngles"/>
+                <property name="transformInheritanceMode" val="All"/>
+                <property name="objectVelocity" x="0" y="0" z="0"/>
+                <property name="startPosition" x="0" y="0" z="0"/>
+                <property name="acceleration" x="0" y="0" z="0"/>
+                <property name="startVelocity" x="0" y="0" z="0"/>
+                <property name="localRotationAxis" x="1" y="0" z="0"/>
+                <property name="currentRotation" val="0"/>
+                <property name="rotationStart" val="0"/>
+                <property name="rotationsPerSecond" val="0"/>
+                <property name="integrationSamplingStep" val="0.01"/>
+            </object>
         </properties>
         <keyframes>
             <scene/>
@@ -988,6 +1022,7 @@
             <object uid="1057"/>
             <object uid="1058"/>
             <object uid="1059"/>
+            <object uid="1060"/>
         </keyframes>
         <additional_data>
             <physics>
@@ -1029,23 +1064,24 @@
         </cameraView_3>
         <connection_node_position>
             <data key="503" data="0 300"/>
-            <data key="501" data="0 100"/>
+            <data key="1053" data="676 123"/>
             <data key="702" data="18.3649 493.266"/>
-            <data key="502" data="0 200"/>
-            <data key="1058" data="1050 200"/>
-            <data key="1059" data="1050 200"/>
-            <data key="1051" data="558.179 -186.072"/>
-            <data key="1057" data="1050 100"/>
-            <data key="1028" data="366.867 -160.511"/>
             <data key="600" data="0 400"/>
-            <data key="800" data="152.516 78.7403"/>
-            <data key="500" data="0 0"/>
-            <data key="1053" data="1050 0"/>
-            <data key="1056" data="1050 100"/>
-            <data key="1041" data="677.3 -5.25438"/>
-            <data key="1040" data="700 400"/>
-            <data key="700" data="-8.13616 -95.7271"/>
+            <data key="502" data="0 200"/>
+            <data key="1051" data="558.179 -186.072"/>
+            <data key="1040" data="670 351"/>
+            <data key="1059" data="1050 200"/>
+            <data key="1057" data="1050 100"/>
             <data key="1054" data="1050 100"/>
+            <data key="1060" data="462 302"/>
+            <data key="1058" data="1050 200"/>
+            <data key="800" data="152.516 78.7403"/>
+            <data key="501" data="0 100"/>
+            <data key="500" data="0 0"/>
+            <data key="1041" data="677.3 -5.25438"/>
+            <data key="1028" data="366.867 -160.511"/>
+            <data key="700" data="-8.13616 -95.7271"/>
+            <data key="1056" data="1050 100"/>
         </connection_node_position>
         <gui>
             <data key="osdPosition" data="4"/>

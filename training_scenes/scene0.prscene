@@ -12,7 +12,6 @@
             <object type="Phong material" uid="702" name="DefaultMaterialFlat"/>
             <object type="Colored mesh material" uid="703" name="ColoredMeshMaterial"/>
             <object type="Gravity" uid="800" name="DefaultGravity"/>
-            <object type="Cylinder" uid="1024" name="Cup2"/>
             <object type="Preon Solver" uid="1028" name="PreonSolver_1"/>
             <object type="Volume sensor" uid="1040" name="Sensor_Cup1"/>
             <object type="Volume sensor" uid="1041" name="Boundary"/>
@@ -23,29 +22,33 @@
             <object type="Box domain" uid="1056" name="BoxDomain_1"/>
             <object type="Volume sensor" uid="1057" name="Sensor_Cup2"/>
             <object type="Volume Source" uid="1058" name="VolumeSource_1"/>
+            <object type="Mesh" uid="1059" name="Cup2"/>
+            <object type="Transform group" uid="1060" name="Cup1_Group"/>
         </objects>
         <slots/>
         <connections>
-            <connect from="700" to="1024" fromId="Material" toId="Material"/>
             <connect from="700" to="1028" fromId="Material" toId="Material"/>
             <connect from="700" to="1053" fromId="Material" toId="Material"/>
             <connect from="700" to="1055" fromId="Material" toId="Material"/>
-            <connect from="800" to="1024" fromId="ForceField" toId="ForceField"/>
+            <connect from="700" to="1059" fromId="Material" toId="Material"/>
             <connect from="800" to="1028" fromId="ForceField" toId="ForceField"/>
             <connect from="800" to="1053" fromId="ForceField" toId="ForceField"/>
             <connect from="800" to="1055" fromId="ForceField" toId="ForceField"/>
-            <connect from="1024" to="1058" fromId="TriangleMesh" toId="TriangleMesh"/>
+            <connect from="800" to="1059" fromId="ForceField" toId="ForceField"/>
             <connect from="1028" to="1041" fromId="Particles" toId="Particles"/>
             <connect from="1028" to="1040" fromId="Particles" toId="Particles"/>
             <connect from="1028" to="1057" fromId="Particles" toId="Particles"/>
-            <connect from="1028" to="1024" fromId="ParticleSpacing" toId="ParticleSpacing"/>
             <connect from="1028" to="1053" fromId="ParticleSpacing" toId="ParticleSpacing"/>
             <connect from="1028" to="1055" fromId="ParticleSpacing" toId="ParticleSpacing"/>
+            <connect from="1028" to="1059" fromId="ParticleSpacing" toId="ParticleSpacing"/>
             <connect from="1053" to="1058" fromId="TriangleMesh" toId="TriangleMesh"/>
             <connect from="1054" to="1055" fromId="Transform" toId="Transform"/>
             <connect from="1054" to="1028" fromId="ParticleEmitter" toId="ParticleEmitter"/>
             <connect from="1055" to="1058" fromId="TriangleMesh" toId="TriangleMesh"/>
             <connect from="1058" to="1028" fromId="ParticleEmitter" toId="ParticleEmitter"/>
+            <connect from="1059" to="1058" fromId="TriangleMesh" toId="TriangleMesh"/>
+            <connect from="1060" to="1053" fromId="Transform" toId="Transform"/>
+            <connect from="1060" to="1040" fromId="Transform" toId="Transform"/>
         </connections>
         <properties>
             <scene>
@@ -81,8 +84,8 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="invisible"/>
-                <property name="position" x="0.214549" y="-1.04746" z="0.584928"/>
-                <property name="orientation" phi="71.5437" theta="-8.3347e-7" psi="9.04754"/>
+                <property name="position" x="0.321505" y="-0.79172" z="0.504886"/>
+                <property name="orientation" phi="71.8711" theta="6.39285e-6" psi="18.7334"/>
                 <property name="scale" x="1.5" y="1.5" z="1.5"/>
                 <property name="pivot" x="0" y="0" z="0"/>
                 <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
@@ -94,8 +97,8 @@
                 <property name="startPosition" x="0" y="0" z="0"/>
                 <property name="acceleration" x="0" y="0" z="0"/>
                 <property name="startVelocity" x="0" y="0" z="0"/>
-                <property name="localRotationAxis" x="0.990964" y="0.0784042" z="0.108823"/>
-                <property name="currentRotation" val="0.20010486245155334"/>
+                <property name="localRotationAxis" x="0.962696" y="0.158798" z="0.219085"/>
+                <property name="currentRotation" val="0.20542505383491516"/>
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
@@ -105,7 +108,7 @@
                 <property name="nearClip" val="0.01"/>
                 <property name="farClip" val="1000"/>
                 <property name="orthoWidth" val="5"/>
-                <property name="focusDistance" val="1.1493441962160065"/>
+                <property name="focusDistance" val="0.9121358698932106"/>
                 <property name="inverseDirection" val="false"/>
                 <property name="fixedUpAxis" val="true"/>
                 <property name="locked" val="false"/>
@@ -397,79 +400,6 @@
                 <property name="integrationSamplingStep" val="0.01"/>
                 <property name="gravity" x="0" y="0" z="-9.81"/>
             </object>
-            <object uid="1024">
-                <property name="osdPosition" val="Right"/>
-                <property name="isOsdExpanded" val="true"/>
-                <property name="consoleDebug" val="false"/>
-                <property name="statistics" val="false"/>
-                <property name="timings" val="false"/>
-                <property name="showOsdInVideo" val="true"/>
-                <property name="recordStatistics" val="true"/>
-                <property name="trackStatistics" val="true"/>
-                <property name="liveCsvExport" val="false"/>
-                <property name="behavior" val="active"/>
-                <property name="renderMode" val="smoothShaded"/>
-                <property name="position" x="0.15" y="0" z="0.05"/>
-                <property name="orientation" phi="90" theta="0" psi="0"/>
-                <property name="scale" x="0.1" y="0.1" z="0.1"/>
-                <property name="pivot" x="0" y="0" z="0"/>
-                <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
-                <property name="color" r="69" g="120" b="216" a="255"/>
-                <property name="positionControlMode" val="position"/>
-                <property name="orientationControlMode" val="eulerAngles"/>
-                <property name="transformInheritanceMode" val="All"/>
-                <property name="objectVelocity" x="0" y="0" z="0"/>
-                <property name="startPosition" x="0" y="0" z="0"/>
-                <property name="acceleration" x="0" y="0" z="0"/>
-                <property name="startVelocity" x="0" y="0" z="0"/>
-                <property name="localRotationAxis" x="1" y="0" z="0"/>
-                <property name="currentRotation" val="0.25"/>
-                <property name="rotationStart" val="0"/>
-                <property name="rotationsPerSecond" val="0"/>
-                <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.0005"/>
-                <property name="cacheData" val="true"/>
-                <property name="rigidType" val="scripted"/>
-                <property name="twoWayCoupling" val="true"/>
-                <property name="rigidFriction" val="0.5"/>
-                <property name="bounciness" val="0"/>
-                <property name="roughness" val="1"/>
-                <property name="roughnessOffset" val="0"/>
-                <property name="adhesion" val="0.65"/>
-                <property name="density" val="1000"/>
-                <property name="linearVelocity" x="0" y="0" z="0"/>
-                <property name="angularVelocity" x="0" y="0" z="0"/>
-                <property name="flipMesh" val="false"/>
-                <property name="showAABB" val="false"/>
-                <property name="twoSidedLighting" val="true"/>
-                <property name="freezeMovementX" val="false"/>
-                <property name="freezeMovementY" val="false"/>
-                <property name="freezeMovementZ" val="false"/>
-                <property name="freezeRotationX" val="false"/>
-                <property name="freezeRotationY" val="false"/>
-                <property name="freezeRotationZ" val="false"/>
-                <property name="opacity" val="0.7"/>
-                <property name="showParticles" val="false"/>
-                <property name="drawSurfaceNormals" val="false"/>
-                <property name="activeParticlesOnly" val="false"/>
-                <property name="coloring" val="None"/>
-                <property name="automaticRange" val="true"/>
-                <property name="minColoringRange" val="0"/>
-                <property name="maxColoringRange" val="0"/>
-                <property name="minRangeColor" r="255" g="255" b="255" a="255"/>
-                <property name="maxRangeColor" r="0" g="0" b="0" a="255"/>
-                <property name="spacing" val="0.005"/>
-                <property name="surfaceOffset" val="0"/>
-                <property name="particleSamplingMethod" val="Mesh_Independent"/>
-                <property name="particleGridSize" val="0.00125"/>
-                <property name="sceneSamplingTimestamp" val="1508486203611"/>
-                <property name="particleLimit" val="100000000"/>
-                <property name="filmMax" val="0"/>
-                <property name="filmAbsorptionRate" val="0"/>
-                <property name="cullRigidParticles" val="false"/>
-                <property name="topCap" val="false"/>
-                <property name="bottomCap" val="true"/>
-            </object>
             <object uid="1028">
                 <property name="osdPosition" val="Right"/>
                 <property name="isOsdExpanded" val="true"/>
@@ -500,7 +430,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.0005"/>
+                <property name="timestep" val="0.001"/>
                 <property name="cacheData" val="true"/>
                 <property name="rangeExclusively" val="false"/>
                 <property name="maximumParticleVBOSize" val="67108864"/>
@@ -508,7 +438,7 @@
                 <property name="spacing" val="0.005"/>
                 <property name="restDensity" val="998.2071"/>
                 <property name="queryNeighbors" val="Query_All"/>
-                <property name="maxTimestep" val="0.0005"/>
+                <property name="maxTimestep" val="0.001"/>
                 <property name="CFL" val="1"/>
                 <property name="cflViolationNumber" val="1"/>
                 <property name="onCFLViolation" val="DeleteParticles"/>
@@ -526,9 +456,9 @@
                 <property name="clearNeighbors" val="10"/>
                 <property name="neighborAllocSize" val="40"/>
                 <property name="automaticRange" val="true"/>
-                <property name="minColoringRange" val="0.00015495819388888776"/>
-                <property name="midColoringRange" val="0.014185871928930283"/>
-                <property name="maxColoringRange" val="0.028216786682605743"/>
+                <property name="minColoringRange" val="0.000141743992571719"/>
+                <property name="midColoringRange" val="0.01863916963338852"/>
+                <property name="maxColoringRange" val="0.03713659569621086"/>
                 <property name="minRangeColor" r="63" g="126" b="189" a="255"/>
                 <property name="midRangeColor" r="190" g="213" b="236" a="255"/>
                 <property name="maxRangeColor" r="255" g="255" b="255" a="255"/>
@@ -573,7 +503,7 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="smoothShaded"/>
-                <property name="position" x="0" y="0" z="0.21"/>
+                <property name="position" x="0" y="0" z="0.11"/>
                 <property name="orientation" phi="0" theta="0" psi="0"/>
                 <property name="scale" x="0.085" y="0.085" z="0.22"/>
                 <property name="pivot" x="0" y="0" z="0"/>
@@ -668,7 +598,7 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="smoothShaded"/>
-                <property name="position" x="0" y="0" z="0.1"/>
+                <property name="position" x="0" y="0" z="0"/>
                 <property name="orientation" phi="0" theta="0" psi="0"/>
                 <property name="scale" x="1" y="1" z="1"/>
                 <property name="pivot" x="0" y="0" z="0"/>
@@ -686,7 +616,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.0005"/>
+                <property name="timestep" val="0.01"/>
                 <property name="cacheData" val="true"/>
                 <property name="rigidType" val="scripted"/>
                 <property name="twoWayCoupling" val="true"/>
@@ -721,7 +651,7 @@
                 <property name="surfaceOffset" val="0"/>
                 <property name="particleSamplingMethod" val="Mesh_Independent"/>
                 <property name="particleGridSize" val="0.00125"/>
-                <property name="sceneSamplingTimestamp" val="1508486203652"/>
+                <property name="sceneSamplingTimestamp" val="1508845546207"/>
                 <property name="particleLimit" val="100000000"/>
                 <property name="filmMax" val="0"/>
                 <property name="filmAbsorptionRate" val="0"/>
@@ -810,7 +740,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.0005"/>
+                <property name="timestep" val="0.01"/>
                 <property name="cacheData" val="false"/>
                 <property name="rigidType" val="scripted"/>
                 <property name="twoWayCoupling" val="true"/>
@@ -845,7 +775,7 @@
                 <property name="surfaceOffset" val="0"/>
                 <property name="particleSamplingMethod" val="Mesh_Independent"/>
                 <property name="particleGridSize" val="0.00125"/>
-                <property name="sceneSamplingTimestamp" val="1508486203653"/>
+                <property name="sceneSamplingTimestamp" val="0"/>
                 <property name="particleLimit" val="100000000"/>
                 <property name="filmMax" val="0"/>
                 <property name="filmAbsorptionRate" val="0"/>
@@ -949,7 +879,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.0005"/>
+                <property name="timestep" val="0.001"/>
                 <property name="cacheData" val="true"/>
                 <property name="spacing" val="0.005"/>
                 <property name="particleLimit" val="100000000"/>
@@ -963,6 +893,115 @@
                 <property name="borderSize" val="0.005"/>
                 <property name="robustScanConversion" val="false"/>
             </object>
+            <object uid="1059">
+                <property name="osdPosition" val="Right"/>
+                <property name="isOsdExpanded" val="true"/>
+                <property name="consoleDebug" val="false"/>
+                <property name="statistics" val="false"/>
+                <property name="timings" val="false"/>
+                <property name="showOsdInVideo" val="true"/>
+                <property name="recordStatistics" val="true"/>
+                <property name="trackStatistics" val="true"/>
+                <property name="liveCsvExport" val="false"/>
+                <property name="behavior" val="active"/>
+                <property name="renderMode" val="smoothShaded"/>
+                <property name="position" x="0.15" y="0" z="0"/>
+                <property name="orientation" phi="0" theta="0" psi="0"/>
+                <property name="scale" x="1" y="1" z="1"/>
+                <property name="pivot" x="0" y="0" z="0"/>
+                <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
+                <property name="color" r="69" g="120" b="216" a="255"/>
+                <property name="positionControlMode" val="position"/>
+                <property name="orientationControlMode" val="eulerAngles"/>
+                <property name="transformInheritanceMode" val="All"/>
+                <property name="objectVelocity" x="0" y="0" z="0"/>
+                <property name="startPosition" x="0" y="0" z="0"/>
+                <property name="acceleration" x="0" y="0" z="0"/>
+                <property name="startVelocity" x="0" y="0" z="0"/>
+                <property name="localRotationAxis" x="1" y="0" z="0"/>
+                <property name="currentRotation" val="0"/>
+                <property name="rotationStart" val="0"/>
+                <property name="rotationsPerSecond" val="0"/>
+                <property name="integrationSamplingStep" val="0.01"/>
+                <property name="timestep" val="0.01"/>
+                <property name="cacheData" val="true"/>
+                <property name="rigidType" val="scripted"/>
+                <property name="twoWayCoupling" val="true"/>
+                <property name="rigidFriction" val="0.5"/>
+                <property name="bounciness" val="0"/>
+                <property name="roughness" val="1"/>
+                <property name="roughnessOffset" val="0"/>
+                <property name="adhesion" val="0.65"/>
+                <property name="density" val="1000"/>
+                <property name="linearVelocity" x="0" y="0" z="0"/>
+                <property name="angularVelocity" x="0" y="0" z="0"/>
+                <property name="flipMesh" val="false"/>
+                <property name="showAABB" val="false"/>
+                <property name="twoSidedLighting" val="true"/>
+                <property name="freezeMovementX" val="false"/>
+                <property name="freezeMovementY" val="false"/>
+                <property name="freezeMovementZ" val="false"/>
+                <property name="freezeRotationX" val="false"/>
+                <property name="freezeRotationY" val="false"/>
+                <property name="freezeRotationZ" val="false"/>
+                <property name="opacity" val="0.6"/>
+                <property name="showParticles" val="false"/>
+                <property name="drawSurfaceNormals" val="false"/>
+                <property name="activeParticlesOnly" val="false"/>
+                <property name="coloring" val="None"/>
+                <property name="automaticRange" val="true"/>
+                <property name="minColoringRange" val="0"/>
+                <property name="maxColoringRange" val="0"/>
+                <property name="minRangeColor" r="255" g="255" b="255" a="255"/>
+                <property name="maxRangeColor" r="0" g="0" b="0" a="255"/>
+                <property name="spacing" val="0.005"/>
+                <property name="surfaceOffset" val="0"/>
+                <property name="particleSamplingMethod" val="Mesh_Independent"/>
+                <property name="particleGridSize" val="0.00125"/>
+                <property name="sceneSamplingTimestamp" val="1508845546233"/>
+                <property name="particleLimit" val="100000000"/>
+                <property name="filmMax" val="0"/>
+                <property name="filmAbsorptionRate" val="0"/>
+                <property name="cullRigidParticles" val="false"/>
+                <property name="objFile" val="/home/camilog/Documents/Git_Repo/PreonLabWrapper/training_scenes/models/cup0.STL"/>
+                <property name="baseVolume" val="7.587050445560331e-5"/>
+                <property name="collisionShapeType" val="meshConvexHullReduced"/>
+                <property name="useExternalMeshForCollisionShape" val="false"/>
+                <property name="externalCollisionShapeMeshPath" val=""/>
+                <property name="showCollisionShape" val="false"/>
+                <property name="shapeShrinkOffset" val="0"/>
+            </object>
+            <object uid="1060">
+                <property name="osdPosition" val="Right"/>
+                <property name="isOsdExpanded" val="true"/>
+                <property name="consoleDebug" val="false"/>
+                <property name="statistics" val="false"/>
+                <property name="timings" val="false"/>
+                <property name="showOsdInVideo" val="true"/>
+                <property name="recordStatistics" val="true"/>
+                <property name="trackStatistics" val="true"/>
+                <property name="liveCsvExport" val="false"/>
+                <property name="behavior" val="active"/>
+                <property name="renderMode" val="smoothShaded"/>
+                <property name="position" x="0" y="0" z="0.1"/>
+                <property name="orientation" phi="0" theta="0" psi="0"/>
+                <property name="scale" x="1" y="1" z="1"/>
+                <property name="pivot" x="0" y="0" z="0"/>
+                <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
+                <property name="color" r="255" g="100" b="0" a="255"/>
+                <property name="positionControlMode" val="position"/>
+                <property name="orientationControlMode" val="eulerAngles"/>
+                <property name="transformInheritanceMode" val="All"/>
+                <property name="objectVelocity" x="0" y="0" z="0"/>
+                <property name="startPosition" x="0" y="0" z="0"/>
+                <property name="acceleration" x="0" y="0" z="0"/>
+                <property name="startVelocity" x="0" y="0" z="0"/>
+                <property name="localRotationAxis" x="1" y="0" z="0"/>
+                <property name="currentRotation" val="0"/>
+                <property name="rotationStart" val="0"/>
+                <property name="rotationsPerSecond" val="0"/>
+                <property name="integrationSamplingStep" val="0.01"/>
+            </object>
         </properties>
         <keyframes>
             <scene/>
@@ -972,7 +1011,6 @@
             <object uid="503"/>
             <object uid="600"/>
             <object uid="800"/>
-            <object uid="1024"/>
             <object uid="1028"/>
             <object uid="1040"/>
             <object uid="1041"/>
@@ -983,6 +1021,8 @@
             <object uid="1056"/>
             <object uid="1057"/>
             <object uid="1058"/>
+            <object uid="1059"/>
+            <object uid="1060"/>
         </keyframes>
         <additional_data>
             <physics>
@@ -1023,24 +1063,25 @@
             <data key="Camera" data="503"/>
         </cameraView_3>
         <connection_node_position>
-            <data key="501" data="0 100"/>
             <data key="503" data="0 300"/>
-            <data key="1051" data="558.179 -186.072"/>
-            <data key="500" data="0 0"/>
-            <data key="1024" data="571.121 225.632"/>
-            <data key="502" data="0 200"/>
-            <data key="1053" data="1050 0"/>
+            <data key="1053" data="644.403 129.709"/>
             <data key="600" data="0 400"/>
+            <data key="502" data="0 200"/>
+            <data key="1060" data="357 301"/>
+            <data key="1051" data="558.179 -186.072"/>
+            <data key="1040" data="661.911 401.029"/>
+            <data key="1059" data="1050 200"/>
+            <data key="1057" data="853 110"/>
+            <data key="1054" data="844.68 32.8512"/>
+            <data key="1058" data="1044.83 174.174"/>
+            <data key="700" data="-8.13616 -95.7271"/>
+            <data key="501" data="0 100"/>
+            <data key="800" data="152.516 78.7403"/>
+            <data key="500" data="0 0"/>
+            <data key="1041" data="677.3 -5.25438"/>
             <data key="1028" data="366.867 -160.511"/>
             <data key="702" data="18.3649 493.266"/>
-            <data key="1056" data="1050 100"/>
-            <data key="1054" data="1050 100"/>
-            <data key="1057" data="1050 100"/>
-            <data key="1041" data="677.3 -5.25438"/>
-            <data key="700" data="-8.13616 -95.7271"/>
-            <data key="1040" data="700 400"/>
-            <data key="800" data="152.516 78.7403"/>
-            <data key="1058" data="1050 200"/>
+            <data key="1056" data="898.915 -35.5888"/>
         </connection_node_position>
         <gui>
             <data key="osdPosition" data="4"/>

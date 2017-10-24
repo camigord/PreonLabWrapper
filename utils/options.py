@@ -7,7 +7,7 @@ class AgentParams():  # hyperparameters for drl agents
 
         # hyperparameters
         self.batch_size       = 64       # batch size during training
-        self.rm_size          = 1000000    # memory replay maximum size
+        self.rm_size          = 1000000   # memory replay maximum size
         self.gamma            = 0.99     # Discount factor
         self.critic_lr        = 0.001    # Learning rate for critic
         self.actor_lr         = 0.0001   # Learning rate for actor
@@ -23,11 +23,11 @@ class EnvParams():          # Settings for simulation environment
         self.collision_cost   = -1.0              # Reward when collision is detected
         self.goal_reward      = 0.0               # Reward when reaching the goal
         self.max_time         = 10.0              # Maximum length of an episode in seconds
-        self.goal_threshold   = 25.0              # Max volume difference for goal to be considered achieved in milliliters
+        self.goal_threshold   = [0.1, 25.0]      # Max percentage and volume difference (in ml) for goal to be considered achieved
 
         # NOTE: these 2 may not be required
-        self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
-        self.max_ang_vel      = 45.0              # Maximum absolute angular velocity in degrees/s
+        #self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
+        #self.max_ang_vel      = 45.0              # Maximum absolute angular velocity in degrees/s
 
         self.max_lin_disp     = 2.0               # Maximum linear displacement in cm/frame
         self.max_ang_disp     = 10.0              # Maximum angular rotation in degrees/frame
@@ -35,19 +35,16 @@ class EnvParams():          # Settings for simulation environment
         self.min_x            = -12.0             # Range of possible positions
         self.max_x            = 12.0              # Moving outside this range will result in collision
         self.min_y            = 0.0
-        self.max_y            = 20.0
-        self.max_volume       = 468.0             # Maximum volume to pour in milliliters
+        self.max_y            = 25.0
+        self.max_volume       = 692.0             # Maximum initial volume in milliliters
 
-        #self.goal_threshold   = 25.0
-        self.path             = "scene1.prscene"  # Path to the PreonLab scene
-        #self.path             = "scene2.prscene"    # Scene 2 starts with 364ml
-        #self.path             = "scene3.prscene"    # Scene 3 starts with 208ml
+        self.test_path             = "./training_scenes/scene1.prscene"  # Path to the PreonLab scene
 
 class Options():
     agent_params  = AgentParams()
     env_params = EnvParams()
-    train = False
-    continue_training=True
+    train = True
+    continue_training=False
     test_goal = [200, 0]
     test_height = 9
     save_scene_to_path = '/saved_scenes/scene_test123'+str(test_height)+'_' + str(test_goal[0]) + 'ml.prscene'

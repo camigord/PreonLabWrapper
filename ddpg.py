@@ -35,7 +35,7 @@ TAU = opt.agent_params.tau
 # Directory for storing tensorboard summary results
 SUMMARY_DIR = opt.summary_dir
 SAVE_DIR = opt.save_dir
-RANDOM_SEED = 1256
+RANDOM_SEED = 1234
 # Size of replay buffer
 BUFFER_SIZE = opt.agent_params.rm_size
 MINIBATCH_SIZE = opt.agent_params.batch_size
@@ -82,20 +82,13 @@ def build_summaries():
     return train_ops, valid_ops, training_vars, valid_vars
 
 
-def generate_new_goal(args, step, init_volume, validation=False):
-    if validation:
-        possible_values = [50,100,150,200,250,300,350,400,450]
-        #desired_poured_vol = possible_values[int(step%len(possible_values))]
-        desired_poured_vol = np.random.choice([x for x in possible_values if x <= init_volume])
-        desired_spilled_vol = 0.0
-    else:
-        desired_poured_vol = np.random.randint(0,init_volume+1)
-        # We can only spill so much as available liquid remains
-        desired_spilled_vol = np.random.randint(0,init_volume - desired_poured_vol)
+def generate_new_goal(args):
+    height_goal = np.random.randint(0,11) / 10
+    spillage_goal = 0.0
 
-    desired_poured_vol_norm = (desired_poured_vol - args.max_volume/2.0) / (args.max_volume/2.0)
-    desired_spilled_vol_norm = (desired_spilled_vol - args.max_volume/2.0) / (args.max_volume/2.0)
-    new_goal = [desired_poured_vol_norm, desired_spilled_vol_norm]
+    desired_height_norm = (height_goal - 0.5) / (0.5)
+    desired_spilled_vol_norm = (spillage_goal - args.max_volume/2.0) / (args.max_volume/2.0)
+    new_goal = [desired_height_norm, desired_spilled_vol_norm]
     return new_goal
 
 def get_value_in_milliliters(args, value):
@@ -318,15 +311,6 @@ def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal):
     print('Completed')
 
 def main(_):
-    '''
-    previous = tf.train.import_meta_graph(SAVE_DIR + '/model.ckpt.meta')
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        previous.restore(sess,tf.train.latest_checkpoint(SAVE_DIR+'/'))
-        last_vars = tf.trainable_variables()
-        data = sess.run(last_vars)
-        print('Model Restored')
-    '''
     tf.reset_default_graph()
 
     with tf.Session() as sess:

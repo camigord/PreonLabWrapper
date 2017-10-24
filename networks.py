@@ -134,6 +134,8 @@ class CriticNetwork(object):
 
         # Network target (y_i)
         self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
+
+        # TODO: Check to which value should we clip this
         self.clipped_value = tf.clip_by_value(self.predicted_q_value, -100.0, 0.0)
 
         # Define loss and optimization Op

@@ -11,22 +11,14 @@ class Preon_env():
         self.goal_threshold = args.goal_threshold
         self.max_time = args.max_time
 
-        '''
-        self.max_lin_vel = args.max_lin_vel
-        self.max_ang_vel = args.max_ang_vel
-
-        self.max_lin_disp = args.max_lin_disp
-        self.max_ang_disp = args.max_ang_disp
-        '''
-
         self.min_x = args.min_x
         self.max_x = args.max_x
         self.min_y = args.min_y
         self.max_y = args.max_y
         self.max_volume = args.max_volume
 
-    def reset(self, source_height = 10):
-        self.env = PreonScene(self.args, source_height)
+    def reset(self):
+        self.env = PreonScene(self.args)
         self.time_per_frame = self.env.timestep_per_frame
         self.frame_rate = self.env.frame_rate
         self.max_steps = int(self.max_time * self.frame_rate)
@@ -50,7 +42,7 @@ class Preon_env():
         cup1_angle += self.time_per_frame * vel_theta
 
         # Collision detection:
-        # First we need the 4 points defining the vertices of the cups  (Position of cup is with respect to the center of the cup)
+        # First we need the 4 points defining the vertices of the cups  (Position of cup is with respect to the bottom center)
         cup1_size, cup2_size = self.env.get_cups_dimensions()   # Get diameter and height of cups
 
         # Now we need to compute the coordinates of the 4 vertices of each cup
@@ -82,9 +74,6 @@ class Preon_env():
         # The required velocities in (cm/s or degree/s) are equal to the displacement time the number of frames per second
         vel_x, vel_y, vel_theta = self.frame_rate * np.array([delta_x, delta_y, delta_theta])
 
-        '''
-        vel_x, vel_y, vel_theta = action * [self.max_lin_vel, self.max_lin_vel, self.max_ang_vel]
-        '''
         reward = None
         # Check that action does not end in collision
         if self.predict_collision(vel_x, vel_y, vel_theta) == True or self.is_out_of_range(vel_x, vel_y)==True:
@@ -100,7 +89,8 @@ class Preon_env():
         state = list(state)
 
         # Estimate flow_rate
-        flow_rate = np.sum(np.array(state[3:]) - np.array(self.last_state))
+        # flow_rate = np.sum(np.array(state[3:]) - np.array(self.last_state))
+        flow_rate = state[3] - self.last_state[0]       # Change in normalized poured height
         self.last_state = state[3:]
 
         # Add velocities and flow_rate to state
@@ -130,7 +120,19 @@ class Preon_env():
     # NOTE: Is this the best way of verifying the goal?
     def was_goal_reached(self, state, goal):
         # Values are normalized, we need to convert them back into milliliters
-        goal = (np.array(goal) * (self.max_volume/2.0)) + self.max_volume/2.0
+        height_goal = (goal[0] * 0.5) + 0.5
+        spillage_goal = (goal[1] * (self.max_volume/2.0)) + self.max_volume/2.0
+
+        current_height = (state[6] * 0.5) + 0.5
+        current_spillage = (state[7] * (self.max_volume/2.0)) + self.max_volume/2.0
+
+        if np.absolute(height_goal - current_height) > self.goal_threshold[0] or np.absolute(spillage_goal - current_spillage) > self.goal_threshold[1]:
+            return False
+        else:
+            # Goal was reached
+            return True
+
+        '''goal = (np.array(goal) * (self.max_volume/2.0)) + self.max_volume/2.0
         current_vol_state = (np.array(state[6:8]) * (self.max_volume/2.0)) + self.max_volume/2.0
 
         dist_to_goal = np.absolute(current_vol_state - goal) - self.goal_threshold
@@ -139,6 +141,7 @@ class Preon_env():
         else:
             # Goal was reached
             return True
+        '''
 
     def estimate_new_reward(self,state,goal,reward):
         '''
