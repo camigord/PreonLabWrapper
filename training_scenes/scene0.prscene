@@ -84,8 +84,8 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="invisible"/>
-                <property name="position" x="0.321505" y="-0.79172" z="0.504886"/>
-                <property name="orientation" phi="71.8711" theta="6.39285e-6" psi="18.7334"/>
+                <property name="position" x="0.175314" y="-0.840046" z="0.46375"/>
+                <property name="orientation" phi="74.5702" theta="-2.0004e-6" psi="8.64837"/>
                 <property name="scale" x="1.5" y="1.5" z="1.5"/>
                 <property name="pivot" x="0" y="0" z="0"/>
                 <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
@@ -97,8 +97,8 @@
                 <property name="startPosition" x="0" y="0" z="0"/>
                 <property name="acceleration" x="0" y="0" z="0"/>
                 <property name="startVelocity" x="0" y="0" z="0"/>
-                <property name="localRotationAxis" x="0.962696" y="0.158798" z="0.219085"/>
-                <property name="currentRotation" val="0.20542505383491516"/>
+                <property name="localRotationAxis" x="0.9923" y="0.0750326" z="0.0985475"/>
+                <property name="currentRotation" val="0.20832666754722595"/>
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
@@ -435,7 +435,7 @@
                 <property name="rangeExclusively" val="false"/>
                 <property name="maximumParticleVBOSize" val="67108864"/>
                 <property name="opacity" val="1"/>
-                <property name="spacing" val="0.005"/>
+                <property name="spacing" val="0.01"/>
                 <property name="restDensity" val="998.2071"/>
                 <property name="queryNeighbors" val="Query_All"/>
                 <property name="maxTimestep" val="0.001"/>
@@ -456,9 +456,9 @@
                 <property name="clearNeighbors" val="10"/>
                 <property name="neighborAllocSize" val="40"/>
                 <property name="automaticRange" val="true"/>
-                <property name="minColoringRange" val="0.000141743992571719"/>
-                <property name="midColoringRange" val="0.01863916963338852"/>
-                <property name="maxColoringRange" val="0.03713659569621086"/>
+                <property name="minColoringRange" val="0.0003775416116695851"/>
+                <property name="midColoringRange" val="0.015957321971654892"/>
+                <property name="maxColoringRange" val="0.03153710067272186"/>
                 <property name="minRangeColor" r="63" g="126" b="189" a="255"/>
                 <property name="midRangeColor" r="190" g="213" b="236" a="255"/>
                 <property name="maxRangeColor" r="255" g="255" b="255" a="255"/>
@@ -616,7 +616,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.01"/>
+                <property name="timestep" val="0.001"/>
                 <property name="cacheData" val="true"/>
                 <property name="rigidType" val="scripted"/>
                 <property name="twoWayCoupling" val="true"/>
@@ -647,11 +647,11 @@
                 <property name="maxColoringRange" val="0"/>
                 <property name="minRangeColor" r="255" g="255" b="255" a="255"/>
                 <property name="maxRangeColor" r="0" g="0" b="0" a="255"/>
-                <property name="spacing" val="0.005"/>
+                <property name="spacing" val="0.01"/>
                 <property name="surfaceOffset" val="0"/>
                 <property name="particleSamplingMethod" val="Mesh_Independent"/>
-                <property name="particleGridSize" val="0.00125"/>
-                <property name="sceneSamplingTimestamp" val="1508845546207"/>
+                <property name="particleGridSize" val="0.0025"/>
+                <property name="sceneSamplingTimestamp" val="1508920973300"/>
                 <property name="particleLimit" val="100000000"/>
                 <property name="filmMax" val="0"/>
                 <property name="filmAbsorptionRate" val="0"/>
@@ -696,7 +696,7 @@
                 <property name="integrationSamplingStep" val="0.01"/>
                 <property name="timestep" val="0.0005"/>
                 <property name="cacheData" val="true"/>
-                <property name="spacing" val="0.005"/>
+                <property name="spacing" val="0.01"/>
                 <property name="particleLimit" val="1000000"/>
                 <property name="useSolidPlane" val="true"/>
                 <property name="emissionInterval" val="0.2"/>
@@ -771,10 +771,10 @@
                 <property name="maxColoringRange" val="0"/>
                 <property name="minRangeColor" r="255" g="255" b="255" a="255"/>
                 <property name="maxRangeColor" r="0" g="0" b="0" a="255"/>
-                <property name="spacing" val="0.005"/>
+                <property name="spacing" val="0.01"/>
                 <property name="surfaceOffset" val="0"/>
                 <property name="particleSamplingMethod" val="Mesh_Independent"/>
-                <property name="particleGridSize" val="0.00125"/>
+                <property name="particleGridSize" val="0.0025"/>
                 <property name="sceneSamplingTimestamp" val="0"/>
                 <property name="particleLimit" val="100000000"/>
                 <property name="filmMax" val="0"/>
@@ -881,7 +881,7 @@
                 <property name="integrationSamplingStep" val="0.01"/>
                 <property name="timestep" val="0.001"/>
                 <property name="cacheData" val="true"/>
-                <property name="spacing" val="0.005"/>
+                <property name="spacing" val="0.01"/>
                 <property name="particleLimit" val="100000000"/>
                 <property name="emitFrame" val="0"/>
                 <property name="drawParticlePositions" val="false"/>
@@ -923,7 +923,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.01"/>
+                <property name="timestep" val="0.001"/>
                 <property name="cacheData" val="true"/>
                 <property name="rigidType" val="scripted"/>
                 <property name="twoWayCoupling" val="true"/>
@@ -954,11 +954,11 @@
                 <property name="maxColoringRange" val="0"/>
                 <property name="minRangeColor" r="255" g="255" b="255" a="255"/>
                 <property name="maxRangeColor" r="0" g="0" b="0" a="255"/>
-                <property name="spacing" val="0.005"/>
+                <property name="spacing" val="0.01"/>
                 <property name="surfaceOffset" val="0"/>
                 <property name="particleSamplingMethod" val="Mesh_Independent"/>
-                <property name="particleGridSize" val="0.00125"/>
-                <property name="sceneSamplingTimestamp" val="1508845546233"/>
+                <property name="particleGridSize" val="0.0025"/>
+                <property name="sceneSamplingTimestamp" val="1508920973316"/>
                 <property name="particleLimit" val="100000000"/>
                 <property name="filmMax" val="0"/>
                 <property name="filmAbsorptionRate" val="0"/>
@@ -1063,24 +1063,24 @@
             <data key="Camera" data="503"/>
         </cameraView_3>
         <connection_node_position>
-            <data key="503" data="0 300"/>
-            <data key="1053" data="644.403 129.709"/>
-            <data key="600" data="0 400"/>
-            <data key="502" data="0 200"/>
-            <data key="1060" data="357 301"/>
-            <data key="1051" data="558.179 -186.072"/>
-            <data key="1040" data="661.911 401.029"/>
-            <data key="1059" data="1050 200"/>
-            <data key="1057" data="853 110"/>
             <data key="1054" data="844.68 32.8512"/>
             <data key="1058" data="1044.83 174.174"/>
-            <data key="700" data="-8.13616 -95.7271"/>
-            <data key="501" data="0 100"/>
-            <data key="800" data="152.516 78.7403"/>
-            <data key="500" data="0 0"/>
+            <data key="1057" data="853 110"/>
+            <data key="502" data="0 200"/>
             <data key="1041" data="677.3 -5.25438"/>
-            <data key="1028" data="366.867 -160.511"/>
+            <data key="800" data="152.516 78.7403"/>
+            <data key="501" data="0 100"/>
+            <data key="700" data="-8.13616 -95.7271"/>
+            <data key="1060" data="357 301"/>
+            <data key="1040" data="661.911 401.029"/>
             <data key="702" data="18.3649 493.266"/>
+            <data key="600" data="0 400"/>
+            <data key="503" data="0 300"/>
+            <data key="1051" data="558.179 -186.072"/>
+            <data key="1059" data="1050 200"/>
+            <data key="1053" data="644.403 129.709"/>
+            <data key="1028" data="366.867 -160.511"/>
+            <data key="500" data="0 0"/>
             <data key="1056" data="898.915 -35.5888"/>
         </connection_node_position>
         <gui>

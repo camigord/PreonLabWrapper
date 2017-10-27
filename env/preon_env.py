@@ -1,6 +1,7 @@
 import numpy as np
 from env.PreonScene import PreonScene
 from utils.collision_aux import *
+from utils.utils import *
 
 class Preon_env():
     def __init__(self, args):
@@ -23,13 +24,13 @@ class Preon_env():
         self.frame_rate = self.env.frame_rate
         self.max_steps = int(self.max_time * self.frame_rate)
         self.current_step = 0
+        self.ring_location = self.env.ring_location
 
         state = list(self.env.get_state())
 
         self.last_state = state[3:]         # Poured and spilled volumes in last step - initially it is just the starting values
         flow_rate = 0.0
-        state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:]
-        state.append(flow_rate)
+        state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:] + [flow_rate] + self.ring_location
 
         return state, self.env.get_info()
 
@@ -85,17 +86,14 @@ class Preon_env():
 
         # Get environment state
         state = self.env.get_state()
-
         state = list(state)
 
         # Estimate flow_rate
-        # flow_rate = np.sum(np.array(state[3:]) - np.array(self.last_state))
         flow_rate = state[3] - self.last_state[0]       # Change in normalized poured height
         self.last_state = state[3:]
 
         # Add velocities and flow_rate to state
-        state = state[0:3] + list(action) + state[3:]
-        state.append(flow_rate)
+        state = state[0:3] + list(action) + state[3:] + [flow_rate] + self.ring_location
 
         # Determine if the episode is over
         if self.current_step == self.max_steps or self.get_elapsed_time() >= self.max_time:
@@ -119,29 +117,18 @@ class Preon_env():
 
     # NOTE: Is this the best way of verifying the goal?
     def was_goal_reached(self, state, goal):
-        # Values are normalized, we need to convert them back into milliliters
-        height_goal = (goal[0] * 0.5) + 0.5
-        spillage_goal = (goal[1] * (self.max_volume/2.0)) + self.max_volume/2.0
+        # Values are normalized, we need to convert them back into milliliters or %
+        height_goal = get_denormalized(goal[0],0.0,1.0)
+        spillage_goal = get_denormalized(goal[1],0.0,self.max_volume)
 
-        current_height = (state[6] * 0.5) + 0.5
-        current_spillage = (state[7] * (self.max_volume/2.0)) + self.max_volume/2.0
+        current_height = get_denormalized(state[6],0.0,1.0)
+        current_spillage = get_denormalized(state[7],0.0,self.max_volume)
 
         if np.absolute(height_goal - current_height) > self.goal_threshold[0] or np.absolute(spillage_goal - current_spillage) > self.goal_threshold[1]:
             return False
         else:
             # Goal was reached
             return True
-
-        '''goal = (np.array(goal) * (self.max_volume/2.0)) + self.max_volume/2.0
-        current_vol_state = (np.array(state[6:8]) * (self.max_volume/2.0)) + self.max_volume/2.0
-
-        dist_to_goal = np.absolute(current_vol_state - goal) - self.goal_threshold
-        if np.sum(np.maximum(dist_to_goal,0)) > 0:
-            return False
-        else:
-            # Goal was reached
-            return True
-        '''
 
     def estimate_new_reward(self,state,goal,reward):
         '''

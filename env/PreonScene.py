@@ -2,6 +2,7 @@ import preonpy
 import numpy as np
 import glob
 import os
+from utils.utils import *
 
 # Coordinates of the destination container opening (x, z and radius in cm + minimum volume source height in cm)
 # The minimum source volume height quarantees that initial volume is sufficient
@@ -17,7 +18,7 @@ cup_capacities = {'scene0': 579,
                'scene1': 350,
                'scene2': 370,
                'scene3': 210,
-               'scene4': 690,
+               'scene4': 648,
                'scene5': 110}
 
 class PreonScene():
@@ -76,15 +77,18 @@ class PreonScene():
         self.sensor_cup2.__setitem__("position", new_pos)
 
         # Update ring coordinates
-        self.ring_location = [self.ring_coordinates[0]+delta_x, self.ring_coordinates[1]+delta_z, self.ring_coordinates[2]]
+        ring_x_norm = get_normalized(self.ring_coordinates[0]+delta_x, 10.0, 30.0)
+        ring_z_norm = get_normalized(self.ring_coordinates[1]+delta_z, 0.0, 20.0)
+        ring_r_norm = get_normalized(self.ring_coordinates[2], 3.0, 6.0)
+        self.ring_location = [ring_x_norm, ring_z_norm, ring_r_norm]     # X,Z and radius
 
         # Set initial volume randomly but with enough liquid to fill the corresponding container
-        self.Source.__setitem__("scale", [0.1, 0.1, np.random.randint(self.ring_coordinates[3],23)/100])
+        self.Source.__setitem__("scale", [0.085, 0.085, np.random.randint(self.ring_coordinates[3],23)/100])
 
         # Set trajectorie points for the first 2 frames
         init_angle = np.array(self.transfor_group.__getitem__("euler angles"))[1]
         init_pos = np.array(self.transfor_group.__getitem__("position"))
-        init_frames = 2
+        init_frames = 3
 
         self.trajectorie_angles = self._set_keyframes([self.transfor_group],[],0,init_angle,'euler angles theta')
         self.trajectorie_posx = self._set_keyframes([self.transfor_group],[],0,init_pos[0],'position x')
@@ -131,11 +135,6 @@ class PreonScene():
     def get_info(self):
         return self.init_particles, self.remaining_particles, self.vol_cup1
 
-    def get_normalized(self,value,var_min,var_max):
-        new_max = var_max + abs(var_min)
-        norm_value = ((value + abs(var_min)) - (new_max / 2.0)) / (new_max / 2.0)
-        return norm_value
-
     def get_state(self):
         # Get and return current state
         pos_x, pos_y = self.cup1_pos[0], self.cup1_pos[2]
@@ -143,11 +142,11 @@ class PreonScene():
         poured_vol = self.vol_cup2
         spilled_vol = self.init_particles - self.remaining_particles
 
-        theta_angle_norm = self.get_normalized(theta_angle, 0.0, 360.0)
-        pos_x_norm = self.get_normalized(pos_x, self.min_x, self.max_x)
-        pos_y_norm = self.get_normalized(pos_y, self.min_y, self.max_y)
-        poured_vol_height_norm = self.get_normalized(self.cup_capacity - poured_vol, 0.0, self.cup_capacity)
-        spilled_vol_norm = self.get_normalized(spilled_vol, 0.0, self.max_volume)
+        theta_angle_norm = get_normalized(theta_angle, 0.0, 360.0)
+        pos_x_norm = get_normalized(pos_x, self.min_x, self.max_x)
+        pos_y_norm = get_normalized(pos_y, self.min_y, self.max_y)
+        poured_vol_height_norm = get_normalized(self.cup_capacity - poured_vol, 0.0, self.cup_capacity)
+        spilled_vol_norm = get_normalized(spilled_vol, 0.0, self.max_volume)
         return pos_x_norm, pos_y_norm, theta_angle_norm, poured_vol_height_norm, spilled_vol_norm
 
     def execute_action(self, vel_x, vel_y, vel_theta):

@@ -23,7 +23,7 @@ class EnvParams():          # Settings for simulation environment
         self.collision_cost   = -1.0              # Reward when collision is detected
         self.goal_reward      = 0.0               # Reward when reaching the goal
         self.max_time         = 10.0              # Maximum length of an episode in seconds
-        self.goal_threshold   = [0.1, 25.0]      # Max percentage and volume difference (in ml) for goal to be considered achieved
+        self.goal_threshold   = [0.2, 25.0]      # Max percentage and volume difference (in ml) for goal to be considered achieved
 
         # NOTE: these 2 may not be required
         #self.max_lin_vel      = 10.0              # Maximum absolute linear velocity in cm/s
@@ -36,7 +36,7 @@ class EnvParams():          # Settings for simulation environment
         self.max_x            = 12.0              # Moving outside this range will result in collision
         self.min_y            = 0.0
         self.max_y            = 25.0
-        self.max_volume       = 692.0             # Maximum initial volume in milliliters
+        self.max_volume       = 648.0             # Maximum initial volume in milliliters
 
         self.test_path             = "./training_scenes/scene1.prscene"  # Path to the PreonLab scene
 

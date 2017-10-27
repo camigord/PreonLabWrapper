@@ -3,12 +3,13 @@ import tensorflow as tf
 import numpy as np
 from env.preon_env import Preon_env
 from utils.options import Options
+from utils.utils import *
 import tflearn
 import sys
 import os
 
 from networks import ActorNetwork, CriticNetwork
-from replay_buffer import ReplayBuffer
+from utils.replay_buffer import ReplayBuffer
 
 # ==========================
 #   Training Parameters
@@ -83,16 +84,13 @@ def build_summaries():
 
 
 def generate_new_goal(args):
-    height_goal = np.random.randint(0,11) / 10
+    height_goal = np.random.randint(0,6) / 10
     spillage_goal = 0.0
 
-    desired_height_norm = (height_goal - 0.5) / (0.5)
-    desired_spilled_vol_norm = (spillage_goal - args.max_volume/2.0) / (args.max_volume/2.0)
+    desired_height_norm = get_normalized(height_goal,0.0,1.0)
+    desired_spilled_vol_norm = get_normalized(spillage_goal,0.0,args.max_volume)
     new_goal = [desired_height_norm, desired_spilled_vol_norm]
     return new_goal
-
-def get_value_in_milliliters(args, value):
-    return value*(args.max_volume/2.0) + (args.max_volume/2.0)
 
 # ===========================
 #   Agent Training
@@ -124,13 +122,11 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
     # Initialize replay memory
     replay_buffer = ReplayBuffer(BUFFER_SIZE, RANDOM_SEED)
 
-    validation_step = 0
     for i in range(MAX_EPISODES):
         current_step = sess.run(global_step)
 
-        init_height = np.random.randint(1, 11)
-        s, info = env.reset(init_height)
-        goal = generate_new_goal(opt.env_params, current_step, int(env.env.init_particles), validation=True)
+        s, info = env.reset()
+        goal = generate_new_goal(opt.env_params)
 
         ep_reward = 0
         ep_ave_max_q = 0
@@ -216,9 +212,8 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
                     valid_terminal = False
                     valid_r = 0
                     valid_collision = 0
-                    init_height = np.random.randint(1, 11)
-                    s, info = env.reset(init_height)
-                    goal = generate_new_goal(opt.env_params, validation_step, int(env.env.init_particles), validation=True)
+                    s, info = env.reset()
+                    goal = generate_new_goal(opt.env_params)
                     while not valid_terminal:
                         input_s = np.reshape(s, (1, actor.s_dim))
                         input_g = np.reshape(goal, (1, actor.goal_dim))
@@ -231,17 +226,22 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
 
 
                     # Compute the % of liquid which was poured
+                    '''
                     valid_poured_vol = get_value_in_milliliters(opt.env_params,s[6])
                     valid_poured_goal = get_value_in_milliliters(opt.env_params,goal[0])
                     valid_percentage_poured = valid_poured_vol*100 / float(valid_poured_goal)
+                    '''
+                    valid_poured_vol = get_denormalized(s[6],0.0,1.0)
+                    valid_poured_goal = get_denormalized(goal[0],0.0,1.0)
+                    valid_percentage_difference = valid_poured_goal - valid_poured_vol
 
                     # Compute the spillage in milliliters
-                    valid_spillage = get_value_in_milliliters(opt.env_params,s[7])
+                    valid_spillage = get_denormalized(s[7],0.0,opt.env_params.max_volume)
 
                     summary_valid = sess.run(valid_ops, feed_dict={
                         valid_vars[0]: valid_r,
                         valid_vars[1]: valid_collision,
-                        valid_vars[2]: valid_percentage_poured,
+                        valid_vars[2]: valid_percentage_difference,
                         valid_vars[3]: valid_spillage
                     })
                     writer.add_summary(summary_valid, current_step)
@@ -252,8 +252,6 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
                     print("Model saved in file: %s" % save_path)
                     print('-------------------------------------')
 
-                    validation_step += 1
-
                 break
 
         # Increase global_step
@@ -261,6 +259,7 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
 
 def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal):
     # Set up summary Ops
+    '''
     train_ops, valid_ops, training_vars, valid_vars = build_summaries()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     step_op = global_step.assign(global_step+1)
@@ -308,6 +307,7 @@ def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal):
     print('Episode Poured Volume: ', get_value_in_milliliters(opt.env_params,s[6]))
     print('Saving scene...')
     env.save_scene(os.getcwd()+opt.save_scene_to_path)
+    '''
     print('Completed')
 
 def main(_):
@@ -318,7 +318,7 @@ def main(_):
         np.random.seed(RANDOM_SEED)
         tf.set_random_seed(RANDOM_SEED)
 
-        state_dim = 9
+        state_dim = 9 + 3       # State has 9 values + 3 values from ring location (x,z,r)
         action_dim = 3
         goal_dim = 2
 
