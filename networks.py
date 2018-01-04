@@ -13,9 +13,7 @@ class ActorNetwork(object):
     The output layer activation is a tanh to keep the action
     between -2 and 2
     """
-
-    def __init__(self, sess, state_dim, action_dim, goal_dim, learning_rate, tau, args):
-        self.sess = sess
+    def __init__(self, state_dim, action_dim, goal_dim, learning_rate, tau, args):
         self.s_dim = state_dim
         self.a_dim = action_dim
         self.goal_dim = goal_dim
@@ -54,15 +52,15 @@ class ActorNetwork(object):
         inputs = tflearn.input_data(shape=[None, self.s_dim])
         goal = tflearn.input_data(shape=[None, self.goal_dim])
 
-        net_state = tflearn.fully_connected(inputs, 400, activation='relu', regularizer='L2')
-        net_goal = tflearn.fully_connected(goal, 200, activation='relu', regularizer='L2')
+        net_state = tflearn.fully_connected(inputs, 500, activation='elu', regularizer='L2')
+        net_goal = tflearn.fully_connected(goal, 200, activation='elu', regularizer='L2')
 
         # Use two temp layers to get the corresponding weights and biases
-        t1 = tflearn.fully_connected(net_state, 300, regularizer='L2')
-        t2 = tflearn.fully_connected(net_goal, 300, regularizer='L2')
+        t1 = tflearn.fully_connected(net_state, 400, regularizer='L2')
+        t2 = tflearn.fully_connected(net_goal, 400, regularizer='L2')
 
-        net = tflearn.activation(tf.matmul(net_state, t1.W) + tf.matmul(net_goal, t2.W) + t2.b, activation='relu')
-        net = tflearn.fully_connected(net, 300, activation='relu', regularizer='L2')
+        net = tflearn.activation(tf.matmul(net_state, t1.W) + tf.matmul(net_goal, t2.W) + t2.b, activation='elu')
+        net = tflearn.fully_connected(net, 300, activation='elu', regularizer='L2')
 
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
@@ -70,6 +68,9 @@ class ActorNetwork(object):
         # Scale output to -action_bound to action_bound
         scaled_out = tf.multiply(out, [self.args.max_lin_disp, self.args.max_lin_disp, self.args.max_ang_disp])
         return inputs, goal, out, scaled_out
+
+    def set_session(self,sess):
+        self.sess = sess
 
     def train(self, inputs, goals, a_gradient):
         self.sess.run(self.optimize, feed_dict={
@@ -109,8 +110,7 @@ class CriticNetwork(object):
 
     """
 
-    def __init__(self, sess, state_dim, action_dim, goal_dim, learning_rate, tau, num_actor_vars, args):
-        self.sess = sess
+    def __init__(self, state_dim, action_dim, goal_dim, learning_rate, tau, num_actor_vars, args):
         self.s_dim = state_dim
         self.a_dim = action_dim
         self.goal_dim = goal_dim
@@ -134,8 +134,6 @@ class CriticNetwork(object):
 
         # Network target (y_i)
         self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
-
-        # TODO: Check to which value should we clip this
         self.clipped_value = tf.clip_by_value(self.predicted_q_value, -100.0, 0.0)
 
         # Define loss and optimization Op
@@ -150,24 +148,27 @@ class CriticNetwork(object):
 
         self.num_trainable_vars = len(self.network_params) + len(self.target_network_params)
 
+    def set_session(self,sess):
+        self.sess = sess
+
     def create_critic_network(self):
         inputs = tflearn.input_data(shape=[None, self.s_dim])
         goals = tflearn.input_data(shape=[None, self.goal_dim])
         action = tflearn.input_data(shape=[None, self.a_dim])
 
-        net_state = tflearn.fully_connected(inputs, 400, activation='relu', regularizer='L2')
-        net_goal = tflearn.fully_connected(goals, 200, activation='relu', regularizer='L2')
+        net_state = tflearn.fully_connected(inputs, 500, activation='elu', regularizer='L2')
+        net_goal = tflearn.fully_connected(goals, 200, activation='elu', regularizer='L2')
 
         # Add the action tensor in the 2nd hidden layer
         # Use two temp layers to get the corresponding weights and biases
-        t1 = tflearn.fully_connected(net_state, 300, regularizer='L2')
-        t2 = tflearn.fully_connected(net_goal, 300, regularizer='L2')
-        t3 = tflearn.fully_connected(action, 300, regularizer='L2')
+        t1 = tflearn.fully_connected(net_state, 400, regularizer='L2')
+        t2 = tflearn.fully_connected(net_goal, 400, regularizer='L2')
+        t3 = tflearn.fully_connected(action, 400, regularizer='L2')
 
         net = tflearn.activation(tf.matmul(net_state, t1.W) + tf.matmul(net_goal, t2.W) + \
-                                 tf.matmul(action, t3.W) + t3.b, activation='relu')
+                                 tf.matmul(action, t3.W) + t3.b, activation='elu')
 
-        net = tflearn.fully_connected(net, 200, activation='relu', regularizer='L2')
+        net = tflearn.fully_connected(net, 200, activation='elu', regularizer='L2')
 
         # linear layer connected to 1 output representing Q(s,a)
         # Weights are init to Uniform[-3e-3, 3e-3]

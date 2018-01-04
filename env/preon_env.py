@@ -18,19 +18,23 @@ class Preon_env():
         self.max_y = args.max_y
         self.max_volume = args.max_volume
 
-    def reset(self):
-        self.env = PreonScene(self.args)
+    def reset(self, source_height = 10):
+        self.env = PreonScene(self.args, source_height)
         self.time_per_frame = self.env.timestep_per_frame
         self.frame_rate = self.env.frame_rate
-        self.max_steps = int(self.max_time * self.frame_rate)
+        self.max_steps = int(np.ceil(self.max_time * self.frame_rate / self.frames_per_action))
         self.current_step = 0
-        self.ring_location = self.env.ring_location
 
         state = list(self.env.get_state())
 
-        self.last_state = state[3:]         # Poured and spilled volumes in last step - initially it is just the starting values
-        flow_rate = 0.0
-        state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:] + [flow_rate] + self.ring_location
+        #self.last_state = state[3:]         # Poured and spilled volumes in last step - initially it is just the starting values
+        #flow_rate = 0.0
+
+        self.last_state = state[5]
+        filling_rate = 0.0
+        state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:5] + [filling_rate]
+        #state.append(flow_rate)
+        #state.append(filling_rate)
 
         return state, self.env.get_info()
 
@@ -43,7 +47,7 @@ class Preon_env():
         cup1_angle += self.time_per_frame * vel_theta
 
         # Collision detection:
-        # First we need the 4 points defining the vertices of the cups  (Position of cup is with respect to the bottom center)
+        # First we need the 4 points defining the vertices of the cups  (Position of cup is with respect to the center of the cup)
         cup1_size, cup2_size = self.env.get_cups_dimensions()   # Get diameter and height of cups
 
         # Now we need to compute the coordinates of the 4 vertices of each cup
@@ -76,6 +80,7 @@ class Preon_env():
         vel_x, vel_y, vel_theta = self.frame_rate * np.array([delta_x, delta_y, delta_theta])
 
         reward = None
+
         # Check that action does not end in collision
         if self.predict_collision(vel_x, vel_y, vel_theta) == True or self.is_out_of_range(vel_x, vel_y)==True:
             # Collision detected!
@@ -84,19 +89,18 @@ class Preon_env():
         else:
             self.env.execute_action(vel_x, vel_y, vel_theta)
 
-        # Get environment state
-        state = self.env.get_state()
-        state = list(state)
 
-        # Estimate flow_rate
-        flow_rate = state[3] - self.last_state[0]       # Change in normalized poured height
-        self.last_state = state[3:]
+        # Get environment state
+        state = list(self.env.get_state())
+        filling_rate = state[5] - self.last_state
+        filling_rate = get_normalized(filling_rate, 0.0, 1.0)
+        self.last_state = state[5]
 
         # Add velocities and flow_rate to state
-        state = state[0:3] + list(action) + state[3:] + [flow_rate] + self.ring_location
+        state = state[0:3] + list(action) + state[3:5] + [filling_rate]
 
-        # Determine if the episode is over
-        if self.current_step == self.max_steps or self.get_elapsed_time() >= self.max_time:
+        # Determine if the episode is over -- current_step is necessary to keep track of progress even when collition is detected and simulation doesnt advance in time
+        if self.current_step >= self.max_steps or self.get_elapsed_time() >= self.max_time:
             terminal = True
         else:
             terminal = False
@@ -107,6 +111,11 @@ class Preon_env():
         if reward is None:
             if self.was_goal_reached(state, goal):
                 reward = self.goal_reward
+
+                '''# Encourage No-op action once goal has been reached
+                if abs(delta_x) < 0.001 and abs(delta_y) < 0.001 and abs(delta_theta) < 0.001:
+                    reward = self.goal_reward
+                    '''
             else:
                 reward = self.step_cost
                 # NOTE: Trying same reward for collision and step
@@ -114,17 +123,13 @@ class Preon_env():
 
         return state, reward, terminal, self.env.get_info(), collision
 
-
-    # NOTE: Is this the best way of verifying the goal?
     def was_goal_reached(self, state, goal):
-        # Values are normalized, we need to convert them back into milliliters or %
-        height_goal = get_denormalized(goal[0],0.0,1.0)
-        spillage_goal = get_denormalized(goal[1],0.0,self.max_volume)
+        # Values are normalized, we need to convert them back
+        goal = [get_denormalized(goal[0],0.0,1.0), get_denormalized(goal[1],0.0,self.max_volume)]
+        current_vol_state = [get_denormalized(state[6],0.0,1.0), get_denormalized(state[7],0.0,self.max_volume)]
 
-        current_height = get_denormalized(state[6],0.0,1.0)
-        current_spillage = get_denormalized(state[7],0.0,self.max_volume)
-
-        if np.absolute(height_goal - current_height) > self.goal_threshold[0] or np.absolute(spillage_goal - current_spillage) > self.goal_threshold[1]:
+        dist_to_goal = np.absolute(np.array(current_vol_state) - np.array(goal))
+        if dist_to_goal[0] > self.goal_threshold[0] or dist_to_goal[1] > self.goal_threshold[1]:
             return False
         else:
             # Goal was reached

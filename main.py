@@ -7,9 +7,30 @@ from utils.utils import *
 import tflearn
 import sys
 import os
+import argparse
 
 from networks import ActorNetwork, CriticNetwork
 from utils.replay_buffer import ReplayBuffer
+
+
+'''
+/////   DDPG - DISTRIBUTED APPROACH
+'''
+
+# input flags
+parser = argparse.ArgumentParser(description='Help message')
+parser.add_argument('--job_name', help="Either 'ps' or 'worker'")
+parser.add_argument('--task_index', type=int, default=0, help="Index of task within the job")
+parser.add_argument('--restore', action='store_true', help="Restores previous model")
+parser.add_argument('--testing', action='store_true', help="Runs a testing episode")
+parser.add_argument('--scene_name', help="Name of the scene to be generated in output folder")
+parser.add_argument('--goal', type=float, default=1.0, help="Target pouring volume [0.0,1.0]")
+args = parser.parse_args()
+
+# cluster specification
+parameter_servers = ["10.8.105.176:2222"]    # 192.168.167.176
+workers = ["10.8.105.176:2223",            # Oreo
+           "10.5.167.17:2224"]             # GPU2
 
 # ==========================
 #   Training Parameters
@@ -36,7 +57,7 @@ TAU = opt.agent_params.tau
 # Directory for storing tensorboard summary results
 SUMMARY_DIR = opt.summary_dir
 SAVE_DIR = opt.save_dir
-RANDOM_SEED = 1563
+RANDOM_SEED = 1256
 # Size of replay buffer
 BUFFER_SIZE = opt.agent_params.rm_size
 MINIBATCH_SIZE = opt.agent_params.batch_size
@@ -59,8 +80,8 @@ def build_summaries():
     training_summaries.append(tf.summary.scalar("Spillage per Episode", avg_spillage))
     extra_goals = tf.Variable(0.)
     training_summaries.append(tf.summary.scalar("Extra Goals", extra_goals))
-    poured_height_train = tf.Variable(0.)
-    training_summaries.append(tf.summary.scalar("Poured Vol Train", poured_height_train))
+    filling_rates = tf.placeholder(tf.float32)
+    training_summaries.append(tf.summary.histogram("Filling rates", filling_rates))
 
     train_ops = tf.summary.merge(training_summaries)
 
@@ -70,84 +91,79 @@ def build_summaries():
     valid_summaries.append(tf.summary.scalar("Validation Rewards", valid_Reward))
     valid_collision = tf.Variable(0.)
     valid_summaries.append(tf.summary.scalar("Validation Collision Rate", valid_collision))
-    valid_height_distance = tf.Variable(0.)
-    valid_summaries.append(tf.summary.scalar("Validation Pouring (%)", valid_height_distance))
+    valid_poured_percent = tf.Variable(0.)
+    valid_summaries.append(tf.summary.scalar("Validation Pouring (%)", valid_poured_percent))
     valid_spillage = tf.Variable(0.)
     valid_summaries.append(tf.summary.scalar("Validation Spillage (ml)", valid_spillage))
 
     valid_ops = tf.summary.merge(valid_summaries)
 
-    valid_vars = [valid_Reward, valid_collision, valid_height_distance, valid_spillage]
-    training_vars = [episode_reward, episode_ave_max_q, value_loss, collision_rate, avg_spillage, extra_goals, poured_height_train]
+    valid_vars = [valid_Reward, valid_collision, valid_poured_percent, valid_spillage]
+    training_vars = [episode_reward, episode_ave_max_q, value_loss, collision_rate, avg_spillage, extra_goals, filling_rates]
 
     #summary_ops = tf.summary.merge_all()
 
     return train_ops, valid_ops, training_vars, valid_vars
 
-'''
-def generate_new_goal(args):
-    # height_goal = np.random.randint(0,6) / 10
-    height_distance_goal = 0.0
-    spillage_goal = 0.0
 
-    desired_height_distance_norm = get_normalized(height_distance_goal,0.0,1.0)
-    desired_spilled_vol_norm = get_normalized(spillage_goal,0.0,args.max_volume)
-    new_goal = [desired_height_distance_norm, desired_spilled_vol_norm]
-    return new_goal
-'''
-def generate_new_goal(args):
-    possible_values = [50,100,150,200,250,300,350,400,450]
-    #desired_poured_vol = possible_values[int(step%len(possible_values))]
-    desired_poured_vol = np.random.choice(possible_values)
+def generate_new_goal(args, init_volume, cup_capacity):
+    fill_level = np.random.randint(1, 11) / float(10)
+
+    # We first make sure that the goal is realistic
+    while fill_level*cup_capacity > init_volume:
+        fill_level = np.random.randint(1, fill_level*10) / float(10)
+
     desired_spilled_vol = 0.0
 
-    desired_poured_vol_norm = get_normalized(desired_poured_vol,0.0,args.max_volume)
+    desired_fill_level_norm = get_normalized(fill_level,0.0,1.0)
     desired_spilled_vol_norm = get_normalized(desired_spilled_vol,0.0,args.max_volume)
-
-    new_goal = [desired_poured_vol_norm, desired_spilled_vol_norm]
+    new_goal = [desired_fill_level_norm, desired_spilled_vol_norm]
     return new_goal
 
+'''
+def generate_new_goal(args, init_volume, cup_capacity):
+
+    possible_values = [50,90,150,180,220,270,300,350,400,450]
+
+    max_possible_val = min(init_volume, cup_capacity)
+    desired_poured_vol = np.random.choice([x for x in possible_values if x <= max_possible_val])
+    desired_spilled_vol = 0.0
+
+    desired_fill_level = desired_poured_vol / cup_capacity
+
+    desired_fill_level_norm = get_normalized(desired_fill_level,0.0,1.0)
+    desired_spilled_vol_norm = get_normalized(desired_spilled_vol,0.0,args.max_volume)
+    new_goal = [desired_fill_level_norm, desired_spilled_vol_norm]
+    return new_goal
+'''
 # ===========================
 #   Agent Training
 # ===========================
-def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
+def train(sess, env, actor, critic, action_dim, goal_dim, state_dim, saver, global_step, step_op):
+
     # Set up summary Ops
     train_ops, valid_ops, training_vars, valid_vars = build_summaries()
-
-    global_step = tf.Variable(0, name='global_step', trainable=False)
-    step_op = global_step.assign(global_step+1)
-
-    # Add ops to save and restore all the variables.
-    saver = tf.train.Saver(max_to_keep=5)
-
-    sess.run(tf.global_variables_initializer())
-
-    if opt.continue_training:
-        saver.restore(sess,tf.train.latest_checkpoint(SAVE_DIR+'/'))
-        actor.restore_params(tf.trainable_variables())
-        critic.restore_params(tf.trainable_variables())
-        print('Model Restored')
-    else:
-        # Initialize target network weights
-        actor.update_target_network()
-        critic.update_target_network()
 
     writer = tf.summary.FileWriter(SUMMARY_DIR, sess.graph)
 
     # Initialize replay memory
     replay_buffer = ReplayBuffer(BUFFER_SIZE, RANDOM_SEED)
 
+    validation_step = 0
     for i in range(MAX_EPISODES):
         current_step = sess.run(global_step)
 
-        s, info = env.reset()
-        goal = generate_new_goal(opt.env_params)
+        #init_height = np.random.randint(2, 11)
+        init_height = 10
+        s, info = env.reset(init_height)
+        goal = generate_new_goal(opt.env_params, int(env.env.init_particles), info[3])
 
         ep_reward = 0
         ep_ave_max_q = 0
         value_loss = 0
         ep_collisions = 0
         ep_extra_goals = 0
+        filling_rates = []
 
         for j in range(env.max_steps+1):
 
@@ -207,10 +223,10 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
             s = s2
             ep_reward += r
             ep_collisions += int(collision)
+            filling_rates.append(get_denormalized(s[8], 0.0, 1.0))
 
             if terminal:
                 episode_spillage = s[7]
-                episode_height_distance = s[6]
 
                 summary_str = sess.run(train_ops, feed_dict={
                     training_vars[0]: ep_reward,
@@ -219,18 +235,20 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
                     training_vars[3]: ep_collisions / float(j),
                     training_vars[4]: episode_spillage,
                     training_vars[5]: ep_extra_goals,
-                    training_vars[6]: episode_height_distance
+                    training_vars[6]: np.array(filling_rates)
                 })
                 writer.add_summary(summary_str, current_step)
                 writer.flush()
 
-
-                if i%VALID_FREQ == VALID_FREQ-1:
+                if i%VALID_FREQ == 0:
                     valid_terminal = False
                     valid_r = 0
                     valid_collision = 0
-                    s, info = env.reset()
-                    goal = generate_new_goal(opt.env_params)
+                    # init_height = np.random.randint(2, 11)
+                    init_height = 10
+                    s, info = env.reset(init_height)
+                    goal = generate_new_goal(opt.env_params, int(env.env.init_particles), info[3])
+
                     while not valid_terminal:
                         input_s = np.reshape(s, (1, actor.s_dim))
                         input_g = np.reshape(goal, (1, actor.goal_dim))
@@ -241,10 +259,9 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
                         valid_collision += int(collision)
                         s = s2
 
-
                     # Compute the % of liquid which was poured
-                    valid_poured_vol = get_denormalized(s[6],0.0,opt.env_params.max_volume)
-                    valid_poured_goal = get_denormalized(goal[0],0.0,opt.env_params.max_volume)
+                    valid_poured_vol = get_denormalized(s[6],0.0,1.0)
+                    valid_poured_goal = get_denormalized(goal[0],0.0,1.0)
                     valid_percentage_poured = valid_poured_vol*100 / float(valid_poured_goal)
 
                     # Compute the spillage in milliliters
@@ -259,38 +276,30 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim):
                     writer.add_summary(summary_valid, current_step)
                     writer.flush()
 
-                    save_path = saver.save(sess, SAVE_DIR + "/model", global_step=current_step)
+                    save_path = saver.save(sess, SAVE_DIR + "/model", global_step=global_step)
                     print('-------------------------------------')
                     print("Model saved in file: %s" % save_path)
                     print('-------------------------------------')
+
+                    validation_step += 1
 
                 break
 
         # Increase global_step
         sess.run(step_op)
 
-def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal):
-    # Set up summary Ops
-    '''
-    train_ops, valid_ops, training_vars, valid_vars = build_summaries()
-    global_step = tf.Variable(0, name='global_step', trainable=False)
-    step_op = global_step.assign(global_step+1)
+def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal, scene_name):
 
-    # Add ops to save and restore all the variables.
-    saver = tf.train.Saver()
-    sess.run(tf.global_variables_initializer())
-
-    saver.restore(sess,tf.train.latest_checkpoint(SAVE_DIR+'/'))
-    actor.restore_params(tf.trainable_variables())
-    critic.restore_params(tf.trainable_variables())
-    print('Model Restored')
-
-    desired_poured_vol_norm = (test_goal[0] - opt.env_params.max_volume/2.0) / (opt.env_params.max_volume/2.0)
-    desired_spilled_vol_norm = (test_goal[1] - opt.env_params.max_volume/2.0) / (opt.env_params.max_volume/2.0)
-    norm_test_goal = [desired_poured_vol_norm, desired_spilled_vol_norm]
+    desired_fill_level_norm = get_normalized(test_goal,0.0,1.0)
+    desired_spilled_vol_norm = get_normalized(0.0,0.0,opt.env_params.max_volume)
+    norm_test_goal = [desired_fill_level_norm, desired_spilled_vol_norm]
 
     init_height = opt.test_height
+
     s, info = env.reset(init_height)
+    print('**************************************')
+    print(info)
+    print('**************************************')
 
     ep_reward = 0
     ep_collisions = 0
@@ -307,41 +316,115 @@ def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal):
         ep_reward += r
         ep_collisions += int(collision)
 
+        spillage = get_denormalized(s[7],0.0,opt.env_params.max_volume)
+
         if terminal:
             episode_spillage = s[7]
+            episode_filling = s[6]
             break
+
 
     print('----------------------------------------------------')
     print('----------------------------------------------------')
     print('Episode reward: ', ep_reward)
     print('Number of collisions: ', ep_collisions)
-    print('Episode Spillage: ', get_value_in_milliliters(opt.env_params,episode_spillage))
-    print('Episode Poured Volume: ', get_value_in_milliliters(opt.env_params,s[6]))
+    print('Episode Spillage: ', get_denormalized(episode_spillage,0.0,opt.env_params.max_volume))
+    print('Episode Poured Volume: ', get_denormalized(episode_filling,0.0,1.0))
     print('Saving scene...')
-    env.save_scene(os.getcwd()+opt.save_scene_to_path)
-    '''
+    env.save_scene(os.getcwd()+opt.saved_scenes_dir+scene_name)
     print('Completed')
 
+
 def main(_):
+
     tf.reset_default_graph()
+    np.random.seed(RANDOM_SEED)
+    tf.set_random_seed(RANDOM_SEED)
 
-    with tf.Session() as sess:
-        env = Preon_env(opt.env_params)
-        np.random.seed(RANDOM_SEED)
-        tf.set_random_seed(RANDOM_SEED)
+    if not args.testing:   # When training
 
-        #state_dim = 9 + 3       # State has 9 values + 3 values from ring location (x,z,r)
+        cluster = tf.train.ClusterSpec({"ps":parameter_servers, "worker":workers})
+        server = tf.train.Server(cluster, job_name=args.job_name, task_index=args.task_index)
+
+        if args.job_name == "ps":
+            server.join()
+        elif args.job_name == "worker":
+            with tf.device(tf.train.replica_device_setter(worker_device="/job:worker/task:%d" % args.task_index,cluster=cluster)):
+                is_chief = (args.task_index == 0)
+                # count the number of updates
+                global_step = tf.get_variable('global_step',[],initializer = tf.constant_initializer(0),trainable = False)
+                step_op = global_step.assign(global_step+1)
+
+                state_dim = 9
+                action_dim = 3
+                goal_dim = 2
+
+                actor = ActorNetwork(state_dim, action_dim, goal_dim, ACTOR_LEARNING_RATE, TAU, opt.env_params)
+                critic = CriticNetwork(state_dim, action_dim, goal_dim, CRITIC_LEARNING_RATE, TAU, actor.get_num_trainable_vars(), opt.env_params)
+
+                init_op = tf.global_variables_initializer()
+
+                # Add ops to save and restore all the variables.
+                saver = tf.train.Saver(max_to_keep=5)
+
+                if is_chief and args.restore:
+                    def restore_model(sess):
+                        actor.set_session(sess)
+                        critic.set_session(sess)
+                        saver.restore(sess,tf.train.latest_checkpoint(opt.save_dir+'/'))
+                        actor.restore_params(tf.trainable_variables())
+                        critic.restore_params(tf.trainable_variables())
+                        print('***********************')
+                        print('Model Restored')
+                        print('***********************')
+                else:
+                    def restore_model(sess):
+                        actor.set_session(sess)
+                        critic.set_session(sess)
+                        # Initialize target network weights
+                        actor.update_target_network()
+                        critic.update_target_network()
+                        print('***********************')
+                        print('Model Initialized')
+                        print('***********************')
+
+                # with tf.Session() as sess:
+                with tf.Session(server.target) as sess:
+                    sess.run(init_op)
+                    restore_model(sess)
+                    env = Preon_env(opt.env_params)
+
+                    train(sess, env, actor, critic, action_dim, goal_dim, state_dim, saver, global_step, step_op)
+
+
+    else:           # When testing
+
         state_dim = 9
         action_dim = 3
         goal_dim = 2
 
-        actor = ActorNetwork(sess, state_dim, action_dim, goal_dim, ACTOR_LEARNING_RATE, TAU, opt.env_params)
-        critic = CriticNetwork(sess, state_dim, action_dim, goal_dim, CRITIC_LEARNING_RATE, TAU, actor.get_num_trainable_vars(), opt.env_params)
+        actor = ActorNetwork(state_dim, action_dim, goal_dim, ACTOR_LEARNING_RATE, TAU, opt.env_params)
+        critic = CriticNetwork(state_dim, action_dim, goal_dim, CRITIC_LEARNING_RATE, TAU, actor.get_num_trainable_vars(), opt.env_params)
 
-        if opt.train:
-            train(sess, env, actor, critic, action_dim, goal_dim, state_dim)
-        else:
-            test(sess,env,actor,critic,action_dim, goal_dim, state_dim, opt.test_goal)
+        init_op = tf.global_variables_initializer()
+
+        # Add ops to save and restore all the variables.
+        saver = tf.train.Saver(max_to_keep=5)
+
+        with tf.Session() as sess:
+            sess.run(init_op)
+            actor.set_session(sess)
+            critic.set_session(sess)
+            saver.restore(sess,tf.train.latest_checkpoint(opt.save_dir+'/'))
+            actor.restore_params(tf.trainable_variables())
+            critic.restore_params(tf.trainable_variables())
+            print('***********************')
+            print('Model Restored')
+            print('***********************')
+
+            env = Preon_env(opt.env_params)
+            test(sess, env, actor, critic, action_dim, goal_dim, state_dim, args.goal, args.scene_name)
+
 
 if __name__ == '__main__':
     tf.app.run()

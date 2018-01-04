@@ -86,11 +86,20 @@ def get_vertices(pos, angle, size):
     diameter, height = size[0], size[1]         # We use 'diameter' because we are simulating cups in preonlab
     posx, posy = pos[0], pos[1]
     temp_vertices = []
+
     # (Position of cup is with respect to the bottom center)
     temp_vertices.append((posx - diameter/2.0, posy + height))   # Top left
     temp_vertices.append((posx + diameter/2.0, posy + height))   # Top right
     temp_vertices.append((posx + diameter/2.0, posy))   # Buttom right
     temp_vertices.append((posx - diameter/2.0, posy))   # Buttom left
+
+    '''
+    # Position of cup is centered
+    temp_vertices.append((posx - diameter/2.0, posy + height/2.0))   # Top left
+    temp_vertices.append((posx + diameter/2.0, posy + height/2.0))   # Top right
+    temp_vertices.append((posx + diameter/2.0, posy - height/2.0))   # Buttom right
+    temp_vertices.append((posx - diameter/2.0, posy - height/2.0))   # Buttom left
+    '''
 
     # Rotate each point according to angle
     # From theory at (https://math.stackexchange.com/questions/270194/how-to-find-the-vertices-angle-after-rotation)
