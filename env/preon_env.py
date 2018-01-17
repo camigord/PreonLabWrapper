@@ -22,7 +22,7 @@ class Preon_env():
         self.env = PreonScene(self.args, source_height)
         self.time_per_frame = self.env.timestep_per_frame
         self.frame_rate = self.env.frame_rate
-        self.max_steps = int(np.ceil(self.max_time * self.frame_rate / self.frames_per_action))
+        self.max_steps = int(np.ceil(self.max_time * self.frame_rate / self.env.frames_per_action))
         self.current_step = 0
 
         state = list(self.env.get_state())
@@ -31,7 +31,7 @@ class Preon_env():
         #flow_rate = 0.0
 
         self.last_state = state[5]
-        filling_rate = 0.0
+        filling_rate = get_normalized(0.0, 0.0, 1.0)
         state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:5] + [filling_rate]
         #state.append(flow_rate)
         #state.append(filling_rate)
@@ -97,7 +97,10 @@ class Preon_env():
         self.last_state = state[5]
 
         # Add velocities and flow_rate to state
-        state = state[0:3] + list(action) + state[3:5] + [filling_rate]
+        # state = state[0:3] + list(action) + state[3:5] + [filling_rate]
+        # Normalizing previous action so that all inputs remain within the same range [-1,1]
+        norm_action = [delta_x/self.args.max_lin_disp, delta_y/self.args.max_lin_disp, delta_theta/self.args.max_ang_disp]
+        state = state[0:3] + norm_action + state[3:5] + [filling_rate]
 
         # Determine if the episode is over -- current_step is necessary to keep track of progress even when collition is detected and simulation doesnt advance in time
         if self.current_step >= self.max_steps or self.get_elapsed_time() >= self.max_time:
@@ -109,7 +112,9 @@ class Preon_env():
 
         # Compute reward
         if reward is None:
-            if self.was_goal_reached(state, goal):
+            dict_state = {'fill_level': state[6],
+                          'spillage': state[7]}
+            if self.was_goal_reached(dict_state, goal):
                 reward = self.goal_reward
 
                 '''# Encourage No-op action once goal has been reached
@@ -123,10 +128,10 @@ class Preon_env():
 
         return state, reward, terminal, self.env.get_info(), collision
 
-    def was_goal_reached(self, state, goal):
+    def was_goal_reached(self, dict_state, goal):
         # Values are normalized, we need to convert them back
         goal = [get_denormalized(goal[0],0.0,1.0), get_denormalized(goal[1],0.0,self.max_volume)]
-        current_vol_state = [get_denormalized(state[6],0.0,1.0), get_denormalized(state[7],0.0,self.max_volume)]
+        current_vol_state = [get_denormalized(dict_state['fill_level'],0.0,1.0), get_denormalized(dict_state['spillage'],0.0,self.max_volume)]
 
         dist_to_goal = np.absolute(np.array(current_vol_state) - np.array(goal))
         if dist_to_goal[0] > self.goal_threshold[0] or dist_to_goal[1] > self.goal_threshold[1]:
@@ -135,14 +140,14 @@ class Preon_env():
             # Goal was reached
             return True
 
-    def estimate_new_reward(self,state,goal,reward):
+    def estimate_new_reward(self,dict_state,goal,reward):
         '''
         Estimates a new reward based on the new goal. If previous reward corresponds to a collision, returns the same reward.
-         - state is the next_state after performing an action in the current transition
+         - dict_state is the next_state after performing an action in the current transition (dictionary containing relevant keys to compute reward)
         '''
         # NOTE: Trying same reward for collision and step
         if reward != self.collision_cost:
-            if self.was_goal_reached(state, goal):
+            if self.was_goal_reached(dict_state, goal):
                 reward = self.goal_reward
             else:
                 reward = self.step_cost

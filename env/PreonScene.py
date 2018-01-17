@@ -93,33 +93,28 @@ class PreonScene():
         poured_vol = self.vol_cup2
         spilled_vol = self.init_particles - self.remaining_particles
 
-        theta_angle = theta_angle % 360.0
-
-        theta_angle_norm = get_normalized(theta_angle, 0.0, 360.0)
-
         # NOTE: Replace position by distance between cups
         dist_x = self.cup2_pos[0] - pos_x
         dist_y = (self.cup2_pos[1] + self.cup2_size[1]) - pos_y           # +cup_height in order to locate center of upper ring
 
-        '''min_x_dist = -2.0
-        max_x_dist = 28.0
-        min_y_dist = -30.0
-        max_y_dist = 0.0
-        '''
-        min_x_dist = -5.0
-        max_x_dist = 28.0
-        min_y_dist = -30.0
-        max_y_dist = -5.0
-
-        pos_x_norm = get_normalized(dist_x, min_x_dist, max_x_dist)
-        pos_y_norm = get_normalized(dist_y, min_y_dist, max_y_dist)
-
         fill_level = poured_vol / self.cup_capacity           # 0: Cup is emmpty, 1: Cup is full
+
+        # NOTE: Adding noise
+        dist_x += np.random.normal(0.0, self.args.noise_x)
+        dist_y += np.random.normal(0.0, self.args.noise_x)
+        theta_angle += np.random.normal(0.0, self.args.noise_theta)
+        fill_level += np.random.normal(0.0, self.args.noise_fill_level)
+
+        theta_angle = theta_angle % 360.0
+
         # NOTE: if the level overshoots above cup's capacity, fill_level may become larger than 1, I assume we can neglect that.
         fill_level_norm = get_normalized(fill_level, 0.0, 1.0)
-
-        #poured_vol_norm = get_normalized(poured_vol, 0.0, self.max_volume)
         spilled_vol_norm = get_normalized(spilled_vol, 0.0, self.max_volume)
+
+        pos_x_norm = get_normalized(dist_x, self.args.min_x_dist, self.args.max_x_dist)
+        pos_y_norm = get_normalized(dist_y, self.args.min_y_dist, self.args.max_y_dist)
+        theta_angle_norm = get_normalized(theta_angle, 0.0, 360.0)
+
         return pos_x_norm, pos_y_norm, theta_angle_norm, fill_level_norm, spilled_vol_norm, fill_level
 
     def execute_action(self, vel_x, vel_y, vel_theta):

@@ -2,20 +2,35 @@ import numpy as np
 import os
 import sys
 
+# NOTE: IMPORTANT!
+'''
+Most of the code was written under the assumption that 1 particle in simulation represents 1ml of liquid.
+Changing the particle size in simulation would require to check the code for inconsistencies, specially variables like max_volume, init_volume, capacity etc
+'''
+
 class AgentParams():  # hyperparameters for drl agents
     def __init__(self):
 
+        # Input size of the network
+        self.state_dim = 9
+        self.action_dim = 3
+        self.goal_dim = 2
+        self.rnn_size = 200
+        self.trace_length = 20
+        self.opt_length = 20
+
         # hyperparameters
-        self.batch_size       = 64       # batch size during training
-        self.rm_size          = 1000000   # memory replay maximum size
+        self.batch_size       = 10       # batch size during training
+        self.rm_size          = 100000   # memory replay maximum size
+        self.min_memory_size  = self.batch_size * 10    # The minimum number of episodes in memory replay before starting training
         self.gamma            = 0.99     # Discount factor
         self.critic_lr        = 0.001    # Learning rate for critic
         self.actor_lr         = 0.0001   # Learning rate for actor
 
         self.tau              = 0.001    # moving average for target network
 
-        self.k_goals          = 4        # Number of additional goals to sample and add to replay memory
-        self.valid_freq       = 100
+        self.max_augmented_goals = 4        # Maximum number of additional goals to sample and add to replay memory per episode
+        self.valid_freq       = 50
 
 class EnvParams():          # Settings for simulation environment
     def __init__(self):
@@ -37,7 +52,18 @@ class EnvParams():          # Settings for simulation environment
 
         self.frames_per_action = 2                # How many frames to run before selecting a new action
 
-        self.test_path             = "./training_scenes/scene0_realmodels.prscene"  # Path to the PreonLab scene
+        self.test_path        = "./training_scenes/scene0_realmodels.prscene"  # Path to the PreonLab scene
+
+        self.noise_x          = 0.5               # Measurement noise (std) in cm
+        self.noise_y          = 0.5               # Measurement noise (std) in cm
+        self.noise_theta      = 3.0               # Measurement noise (std) in degrees
+        self.noise_fill_level = 0.05              # Measurement noise (std) in fill_level %
+
+        # Normalizing values
+        self.min_x_dist       = -5.0              # Values used to normalize inputs into [-1,1] range. Represent expected range of measurements
+        self.max_x_dist       = 28.0
+        self.min_y_dist       = -30.0
+        self.max_y_dist       = -5.0
 
 class Options():
     agent_params  = AgentParams()

@@ -11,6 +11,7 @@ import argparse
 
 from networks import ActorNetwork, CriticNetwork
 from utils.replay_buffer import ReplayBuffer
+from policy import Policy
 
 
 '''
@@ -82,6 +83,8 @@ def build_summaries():
     training_summaries.append(tf.summary.scalar("Extra Goals", extra_goals))
     filling_rates = tf.placeholder(tf.float32)
     training_summaries.append(tf.summary.histogram("Filling rates", filling_rates))
+    training_poured_percent = tf.Variable(0.)
+    training_summaries.append(tf.summary.scalar("Training Pouring (%)", training_poured_percent))
 
     train_ops = tf.summary.merge(training_summaries)
 
@@ -99,7 +102,7 @@ def build_summaries():
     valid_ops = tf.summary.merge(valid_summaries)
 
     valid_vars = [valid_Reward, valid_collision, valid_poured_percent, valid_spillage]
-    training_vars = [episode_reward, episode_ave_max_q, value_loss, collision_rate, avg_spillage, extra_goals, filling_rates]
+    training_vars = [episode_reward, episode_ave_max_q, value_loss, collision_rate, avg_spillage, extra_goals, filling_rates, training_poured_percent]
 
     #summary_ops = tf.summary.merge_all()
 
@@ -226,7 +229,13 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim, saver, glob
             filling_rates.append(get_denormalized(s[8], 0.0, 1.0))
 
             if terminal:
+
                 episode_spillage = s[7]
+
+                # Compute the % of liquid which was poured
+                train_poured_vol = get_denormalized(s[6],0.0,1.0)
+                train_poured_goal = get_denormalized(goal[0],0.0,1.0)
+                train_percentage_poured = train_poured_vol*100 / float(train_poured_goal)
 
                 summary_str = sess.run(train_ops, feed_dict={
                     training_vars[0]: ep_reward,
@@ -235,7 +244,8 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim, saver, glob
                     training_vars[3]: ep_collisions / float(j),
                     training_vars[4]: episode_spillage,
                     training_vars[5]: ep_extra_goals,
-                    training_vars[6]: np.array(filling_rates)
+                    training_vars[6]: np.array(filling_rates),
+                    training_vars[7]: train_percentage_poured
                 })
                 writer.add_summary(summary_str, current_step)
                 writer.flush()
@@ -288,8 +298,58 @@ def train(sess, env, actor, critic, action_dim, goal_dim, state_dim, saver, glob
         # Increase global_step
         sess.run(step_op)
 
-def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal, scene_name):
+def test(policy, env, test_goal, scene_name):
 
+    policy.set_goal([test_goal, 0.0])
+
+    init_height = opt.test_height
+
+    s, info = env.reset(init_height)
+    print('**************************************')
+    print(info)
+    print('**************************************')
+
+    ep_reward = 0
+    ep_collisions = 0
+
+    for j in range(env.max_steps+1):
+        # Denormalize because policy class normalizes internally
+        state = []
+        state.append(get_denormalized(s[0], opt.env_params.min_x_dist, opt.env_params.max_x_dist))
+        state.append(get_denormalized(s[1], opt.env_params.min_y_dist, opt.env_params.max_y_dist))
+        state.append(get_denormalized(s[2], 0.0, 360.0))
+        state.append(get_denormalized(s[3], -opt.env_params.max_lin_disp, opt.env_params.max_lin_disp))
+        state.append(get_denormalized(s[4], -opt.env_params.max_lin_disp, opt.env_params.max_lin_disp))
+        state.append(get_denormalized(s[5], -opt.env_params.max_ang_disp, opt.env_params.max_ang_disp))
+        state.append(get_denormalized(s[6], 0.0, 1.0))
+        state.append(get_denormalized(s[7], 0.0, opt.env_params.max_volume))
+        state.append(get_denormalized(s[8], 0.0, 1.0))
+
+        a = policy.get_output(state)
+
+        s2, r, terminal, info, collision = env.step(a, policy.goal)
+
+        s = s2
+        ep_reward += r
+        ep_collisions += int(collision)
+
+        if terminal:
+            episode_spillage = s[7]
+            episode_filling = s[6]
+            break
+
+    print('----------------------------------------------------')
+    print('----------------------------------------------------')
+    print('Episode reward: ', ep_reward)
+    print('Number of collisions: ', ep_collisions)
+    print('Episode Spillage: ', get_denormalized(episode_spillage,0.0,opt.env_params.max_volume))
+    print('Episode Poured Volume: ', get_denormalized(episode_filling,0.0,1.0))
+    print('Saving scene...')
+    env.save_scene(os.getcwd()+opt.saved_scenes_dir+scene_name)
+    print('Completed')
+
+'''
+def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal, scene_name):
     desired_fill_level_norm = get_normalized(test_goal,0.0,1.0)
     desired_spilled_vol_norm = get_normalized(0.0,0.0,opt.env_params.max_volume)
     norm_test_goal = [desired_fill_level_norm, desired_spilled_vol_norm]
@@ -333,7 +393,7 @@ def test(sess, env, actor, critic, action_dim, goal_dim, state_dim, test_goal, s
     print('Saving scene...')
     env.save_scene(os.getcwd()+opt.saved_scenes_dir+scene_name)
     print('Completed')
-
+'''
 
 def main(_):
 
@@ -399,6 +459,11 @@ def main(_):
 
     else:           # When testing
 
+        with tf.Session() as sess:
+            policy = Policy(sess)
+            env = Preon_env(opt.env_params)
+            test(policy, env, args.goal, args.scene_name)
+        '''
         state_dim = 9
         action_dim = 3
         goal_dim = 2
@@ -424,7 +489,7 @@ def main(_):
 
             env = Preon_env(opt.env_params)
             test(sess, env, actor, critic, action_dim, goal_dim, state_dim, args.goal, args.scene_name)
-
+        '''
 
 if __name__ == '__main__':
     tf.app.run()
