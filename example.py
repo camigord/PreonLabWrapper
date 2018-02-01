@@ -5,7 +5,7 @@ import numpy as np
 from policy import Policy
 
 
-
+tf.reset_default_graph()
 # TensorFlow required
 with tf.Session() as sess:
     policy = Policy(sess)       # Create policy - Restore model defined in Options.py as "save_dir"

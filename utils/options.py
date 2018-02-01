@@ -16,13 +16,13 @@ class AgentParams():  # hyperparameters for drl agents
         self.action_dim = 3
         self.goal_dim = 2
         self.rnn_size = 200
-        self.trace_length = 20
-        self.opt_length = 20
+        self.trace_length = 10
+        self.opt_length = 10
 
         # hyperparameters
-        self.batch_size       = 10       # batch size during training
-        self.rm_size          = 100000   # memory replay maximum size
-        self.min_memory_size  = self.batch_size * 10    # The minimum number of episodes in memory replay before starting training
+        self.batch_size       = 40       # batch size during training
+        self.rm_size          = 10000    # memory replay maximum size
+        self.min_memory_size  = self.batch_size * 5    # The minimum number of episodes in memory replay before starting training
         self.gamma            = 0.99     # Discount factor
         self.critic_lr        = 0.001    # Learning rate for critic
         self.actor_lr         = 0.0001   # Learning rate for actor
@@ -40,30 +40,32 @@ class EnvParams():          # Settings for simulation environment
         self.max_time         = 10.0              # Maximum length of an episode in seconds
         self.goal_threshold   = [0.1, 25.0]       # Max volume difference (in ml) for goal to be considered achieved
 
-        self.max_lin_disp     = 2.0               # Maximum linear displacement in cm/frame
+        self.max_lin_disp     = 2.0               # Maximum linear displacement in cm/frame     (simulation runs at 5 frames/second by default)
         self.max_ang_disp     = 10.0              # Maximum angular rotation in degrees/frame
 
         self.min_x            = -12.0             # Range of possible positions
         self.max_x            = 12.0              # Moving outside this range will result in collision
         self.min_y            = -5.0
         self.max_y            = 20.0
-        # self.max_volume       = 468.0             # Maximum initial volume in milliliters
+
         self.max_volume       = 398.0             # Maximum initial volume in milliliters
 
         self.frames_per_action = 2                # How many frames to run before selecting a new action
+
+        self.safety_boundary   = 0                # Safety boundary around destination cup to avoid collisions in real worls (in cm)
 
         self.test_path        = "./training_scenes/scene0_realmodels.prscene"  # Path to the PreonLab scene
 
         self.noise_x          = 0.5               # Measurement noise (std) in cm
         self.noise_y          = 0.5               # Measurement noise (std) in cm
         self.noise_theta      = 3.0               # Measurement noise (std) in degrees
-        self.noise_fill_level = 0.05              # Measurement noise (std) in fill_level %
+        self.noise_fill_level = 0.05              # Measurement noise (std) in fill_level % (equivalent to 5mm height error with current cup and settings)
 
         # Normalizing values
-        self.min_x_dist       = -5.0              # Values used to normalize inputs into [-1,1] range. Represent expected range of measurements
-        self.max_x_dist       = 28.0
-        self.min_y_dist       = -30.0
-        self.max_y_dist       = -5.0
+        self.min_x_dist       = -2.0              # Values used to normalize inputs into [-1,1] range. Represent expected range of measurements in cm
+        self.max_x_dist       = 22.0              # Computed by analyzing initial position of cup2 and operation range of cup1 (min_x, max_x, min_y, max_y)
+        self.min_y_dist       = -15.0
+        self.max_y_dist       = 10.0
 
 class Options():
     agent_params  = AgentParams()

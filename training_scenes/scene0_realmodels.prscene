@@ -78,8 +78,8 @@
                 <property name="liveCsvExport" val="false"/>
                 <property name="behavior" val="active"/>
                 <property name="renderMode" val="invisible"/>
-                <property name="position" x="0.0328162" y="-0.681129" z="0.088332"/>
-                <property name="orientation" phi="85.7981" theta="4.10237e-6" psi="4.29076"/>
+                <property name="position" x="0.278268" y="-0.938964" z="0.234603"/>
+                <property name="orientation" phi="79.1536" theta="1.15454e-7" psi="16.6711"/>
                 <property name="scale" x="1.5" y="1.5" z="1.5"/>
                 <property name="pivot" x="0" y="0" z="0"/>
                 <property name="pivotOrientationQuat" x="0" y="0" z="0" w="1"/>
@@ -91,8 +91,8 @@
                 <property name="startPosition" x="0" y="0" z="0"/>
                 <property name="acceleration" x="0" y="0" z="0"/>
                 <property name="startVelocity" x="0" y="0" z="0"/>
-                <property name="localRotationAxis" x="0.998489" y="0.0374049" z="0.0402537"/>
-                <property name="currentRotation" val="0.23856812715530396"/>
+                <property name="localRotationAxis" x="0.974561" y="0.142791" z="0.172747"/>
+                <property name="currentRotation" val="0.2239081859588623"/>
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
@@ -102,7 +102,7 @@
                 <property name="nearClip" val="0.01"/>
                 <property name="farClip" val="1000"/>
                 <property name="orthoWidth" val="5"/>
-                <property name="focusDistance" val="0.7537503633297008"/>
+                <property name="focusDistance" val="1.0707889733110767"/>
                 <property name="inverseDirection" val="false"/>
                 <property name="fixedUpAxis" val="true"/>
                 <property name="locked" val="false"/>
@@ -750,7 +750,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.001"/>
+                <property name="timestep" val="0.01"/>
                 <property name="cacheData" val="true"/>
                 <property name="rigidType" val="scripted"/>
                 <property name="twoWayCoupling" val="true"/>
@@ -828,7 +828,7 @@
                 <property name="rotationStart" val="0"/>
                 <property name="rotationsPerSecond" val="0"/>
                 <property name="integrationSamplingStep" val="0.01"/>
-                <property name="timestep" val="0.001"/>
+                <property name="timestep" val="0.01"/>
                 <property name="cacheData" val="true"/>
                 <property name="rigidType" val="scripted"/>
                 <property name="twoWayCoupling" val="true"/>
@@ -935,24 +935,24 @@
             <data key="Camera" data="503"/>
         </cameraView_3>
         <connection_node_position>
-            <data key="1052" data="166.736 249.07"/>
-            <data key="1028" data="366.867 -160.511"/>
-            <data key="1056" data="579.753 554.419"/>
-            <data key="502" data="0 200"/>
-            <data key="600" data="0 400"/>
             <data key="1055" data="586.67 295.284"/>
-            <data key="1040" data="576.12 188.94"/>
-            <data key="1054" data="303.409 451.136"/>
+            <data key="600" data="0 400"/>
             <data key="503" data="0 300"/>
-            <data key="1041" data="576.049 448.176"/>
-            <data key="700" data="-8.13616 -95.7271"/>
-            <data key="1051" data="558.179 -186.072"/>
             <data key="501" data="0 100"/>
-            <data key="1053" data="297.727 302.273"/>
-            <data key="800" data="152.516 78.7403"/>
-            <data key="500" data="0 0"/>
-            <data key="702" data="18.3649 493.266"/>
             <data key="1050" data="736.949 -208.839"/>
+            <data key="1040" data="576.12 188.94"/>
+            <data key="700" data="-8.13616 -95.7271"/>
+            <data key="1041" data="576.049 448.176"/>
+            <data key="1056" data="579.753 554.419"/>
+            <data key="702" data="18.3649 493.266"/>
+            <data key="500" data="0 0"/>
+            <data key="1052" data="166.736 249.07"/>
+            <data key="1053" data="297.727 302.273"/>
+            <data key="1028" data="366.867 -160.511"/>
+            <data key="800" data="152.516 78.7403"/>
+            <data key="1051" data="558.179 -186.072"/>
+            <data key="1054" data="303.409 451.136"/>
+            <data key="502" data="0 200"/>
         </connection_node_position>
         <gui>
             <data key="osdPosition" data="4"/>

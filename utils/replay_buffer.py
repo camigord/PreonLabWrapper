@@ -4,13 +4,15 @@ Data structure for implementing experience replay
 from collections import deque
 import random
 import numpy as np
+import pickle
 
 class ReplayBuffer(object):
 
-    def __init__(self, buffer_size, random_seed=123):
+    def __init__(self, buffer_size, save_dir, random_seed=123):
         """
         The right side of the deque contains the most recent experiences
         """
+        self.save_dir = save_dir
         self.buffer_size = buffer_size
         self.count = 0
         self.buffer = deque()
@@ -48,3 +50,20 @@ class ReplayBuffer(object):
     def clear(self):
         self.deque.clear()
         self.count = 0
+
+    def save_pickle(self):
+        try:
+            pickle.dump(obj=self.buffer ,file=open(self.save_dir+'/buffer.p',mode='wb'))
+            print("Successfuly saved: RDPG Buffer")
+            print("Buffer length saved: " + str(self.count))
+        except Exception as e:
+            print("Error on saving buffer: " + str(e))
+
+    def load_pickle(self):
+        try:
+            self.buffer = pickle.load(file=open(self.save_dir+'/buffer.p',mode='rb'))
+            self.count = len(self.buffer)
+            print("Successfuly loaded: RDPG Buffer")
+            print("Buffer length loaded: " + str(self.count))
+        except Exception as e:
+            print("Could not find old buffer: " + str(e))

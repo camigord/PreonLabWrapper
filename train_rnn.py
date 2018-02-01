@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(description='Help message')
 parser.add_argument('--job_name', help="Either 'ps' or 'worker'")
 parser.add_argument('--task_index', type=int, default=0, help="Index of task within the job")
 parser.add_argument('--restore', action='store_true', help="Restores previous model")
-parser.add_argument('--new_mem_reply', action='store_false', help="If set, does not restore experience replay when restoring model")
+parser.add_argument('--new_mem_reply', action='store_true', help="If set, does not restore experience replay when restoring model")
 parser.add_argument('--testing', action='store_true', help="Runs a testing episode")
 parser.add_argument('--scene_name', help="Name of the scene to be generated in output folder")
 parser.add_argument('--goal', type=float, default=1.0, help="Target pouring volume [0.0,1.0]")
@@ -32,6 +32,7 @@ args = parser.parse_args()
 
 # cluster specification
 parameter_servers = ["10.8.105.176:2222"]    # 192.168.167.176
+
 workers = ["10.8.105.176:2223",            # Oreo
            "10.5.167.17:2224"]             # GPU2
 
@@ -71,7 +72,7 @@ def build_summaries():
     filling_rates = tf.placeholder(tf.float32)
     training_summaries.append(tf.summary.histogram("Filling rates", filling_rates))
     training_poured_percent = tf.Variable(0.)
-    training_summaries.append(tf.summary.scalar("Training Pouring (%)", training_poured_percent))
+    training_summaries.append(tf.summary.scalar("Training Pouring %", training_poured_percent))
 
     train_ops = tf.summary.merge(training_summaries)
 
@@ -80,9 +81,9 @@ def build_summaries():
     valid_Reward = tf.Variable(0.)
     valid_summaries.append(tf.summary.scalar("Validation Rewards", valid_Reward))
     valid_collision = tf.Variable(0.)
-    valid_summaries.append(tf.summary.scalar("Validation Collision Rate", valid_collision))
+    valid_summaries.append(tf.summary.scalar("Validation Collision Number", valid_collision))
     valid_poured_percent = tf.Variable(0.)
-    valid_summaries.append(tf.summary.scalar("Validation Pouring (%)", valid_poured_percent))
+    valid_summaries.append(tf.summary.scalar("Validation Pouring %", valid_poured_percent))
     valid_spillage = tf.Variable(0.)
     valid_summaries.append(tf.summary.scalar("Validation Spillage (ml)", valid_spillage))
 
@@ -121,45 +122,47 @@ def augment_trajectories(replay_buffer, env, episode_trajectory, max_samples):
     # NOTE: Working with fill_level and spillage and assuming those values are stored in state[3:5]
 
     # Get the initial state (fill_level, spillage)
-    init_state = episode_trajectory[0][0][3:5]
+    #init_state = episode_trajectory[0][0][3:5]
+    init_state = episode_trajectory[0][0][6:8]
 
     # Get all the future states which are different than initial and not close enough to the goal
     possible_goals = []
     for transition in episode_trajectory:
-        next_state = transition[-1][3:5]    # fill_level, spillage at next_state
+        next_state = transition[-1][6:8]    # fill_level, spillage at next_state
         old_reward = transition[3]
-        if next_state != init_state and old_reward != env.goal_reward:
+        if next_state.tolist() != init_state.tolist() and old_reward != env.goal_reward:
             possible_goals.append(next_state)
 
     to_sample = min(len(possible_goals), max_samples)
-    # Randomly pick new goals from possible ones
-    index = np.random.choice(range(len(possible_goals)), to_sample, replace=False)
-    for i in index:
-        # New goal for augmented trajectory
-        new_goal = possible_goals[i]
+    if len(possible_goals) > 0:
+        # Randomly pick new goals from possible ones
+        index = np.random.choice(range(len(possible_goals)), to_sample, replace=False)
+        for i in index:
+            # New goal for augmented trajectory
+            new_goal = possible_goals[i]
 
-        augmented_trajectory = []
-        # Go through the entire episode changing goals and rewards for the new trajectory
-        for transition in episode_trajectory:
-            state = transition[0]
-            goal = new_goal
-            action = transition[2]
-            old_reward = transition[3]      # Required to check for collision
-            terminal = transition[4]
-            next_state = transition[5]
+            augmented_trajectory = []
+            # Go through the entire episode changing goals and rewards for the new trajectory
+            for transition in episode_trajectory:
+                state = transition[0]
+                goal = new_goal
+                action = transition[2]
+                old_reward = transition[3]      # Required to check for collision
+                terminal = transition[4]
+                next_state = transition[5]
 
-            dict_state_next = {'fill_level': next_state[3],
-                          'spillage': next_state[4]}
-            new_reward = env.estimate_new_reward(dict_state_next, new_goal, old_reward)
+                dict_state_next = {'fill_level': next_state[6],
+                              'spillage': next_state[7]}
+                new_reward = env.estimate_new_reward(dict_state_next, new_goal, old_reward)
 
 
-            temp = [np.reshape(state, (len(state),)), np.reshape(goal, (len(goal),)),
-                    np.reshape(action, (len(action),)), new_reward, terminal, np.reshape(next_state, (len(next_state),))]
+                temp = [np.reshape(state, (len(state),)), np.reshape(goal, (len(goal),)),
+                        np.reshape(action, (len(action),)), new_reward, terminal, np.reshape(next_state, (len(next_state),))]
 
-            augmented_trajectory.append(temp)
+                augmented_trajectory.append(temp)
 
-        # Add augmented transitions to memory
-        replay_buffer.add(augmented_trajectory)
+            # Add augmented transitions to memory
+            replay_buffer.add(augmented_trajectory)
 
     return to_sample
 
@@ -192,7 +195,8 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
         goal = generate_new_goal(opt.env_params, int(env.env.init_particles), info[3])
 
         # NOTE: Lets remove previous action and filling rate from state, given that we have recurrency
-        state = s[0:3] + s[6:8] # delta_x, delta_y, theta, fill_level, spillage
+        #state = s[0:3] + s[6:8] # delta_x, delta_y, theta, fill_level, spillage
+        state = s
 
         ep_reward = 0
         ep_ave_max_q = []
@@ -215,14 +219,15 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
             action, actor_last_hidden_cm = actor.predict(input_s, input_g,actor_init_hidden_cm)
 
             # Add exploration noise
-            noise = exploration_noise.noise()
-            action += noise
-            # action += (1. / (1. + current_step))
+            # noise = exploration_noise.noise()
+            # action += noise
+            action += (1. / (1. + current_step))
 
             s2, r, terminal, info, collision = env.step(action, goal)
 
             # NOTE: Lets remove previous action and filling rate from state, given that we have recurrency
-            next_state = s2[0:3] + s2[6:8] # delta_x, delta_y, theta, fill_level, spillage
+            #next_state = s2[0:3] + s2[6:8] # delta_x, delta_y, theta, fill_level, spillage
+            next_state = s2
 
             transition = [np.reshape(state, (actor.s_dim,)), np.reshape(goal, (actor.goal_dim,)),
                           np.reshape(action, (actor.a_dim,)), r, terminal, np.reshape(next_state, (actor.s_dim,))]
@@ -239,7 +244,6 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
             # TRAINING!
             # Keep adding experience to the memory until there are at least minibatch size samples
             if replay_buffer.size() >= opt.agent_params.min_memory_size:
-
                 # Sample from memory replay
                 minibatch = replay_buffer.sample_batch(MINIBATCH_SIZE)
                 try:
@@ -384,7 +388,6 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
                 ep_ave_max_q.append(np.amax(predicted_q_value))
                 value_loss.append(v_loss)
 
-
             if terminal:
                 # Add episode transitions to memory
                 replay_buffer.add(episode_trajectory)
@@ -392,17 +395,24 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
                 # Augment memory using Hindsight Experience Replay (HER)
                 ep_extra_trajectories = augment_trajectories(replay_buffer, env, episode_trajectory, opt.agent_params.max_augmented_goals)
 
-                episode_spillage = s[7]
+                episode_spillage = get_denormalized(s[7], 0.0, opt.env_params.max_volume)
 
                 # Compute the % of liquid which was poured
                 train_poured_vol = get_denormalized(s[6],0.0,1.0)
                 train_poured_goal = get_denormalized(goal[0],0.0,1.0)
                 train_percentage_poured = train_poured_vol*100 / float(train_poured_goal)
 
+                avg_max_q = 0
+                avg_loss = 0
+                if len(ep_ave_max_q) > 0:
+                    avg_max_q = np.mean(ep_ave_max_q)
+                if len(value_loss) > 0:
+                    avg_loss = np.mean(value_loss)
+
                 summary_str = sess.run(train_ops, feed_dict={
                     training_vars[0]: ep_reward,
-                    training_vars[1]: np.mean(ep_ave_max_q),
-                    training_vars[2]: np.mean(value_loss),
+                    training_vars[1]: avg_max_q,
+                    training_vars[2]: avg_loss,
                     training_vars[3]: ep_collisions / float(env.max_steps),
                     training_vars[4]: episode_spillage,
                     training_vars[5]: ep_extra_trajectories,
@@ -422,7 +432,8 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
                     goal = generate_new_goal(opt.env_params, int(env.env.init_particles), info[3])
 
                     # NOTE: Lets remove previous action and filling rate from state, given that we have recurrency
-                    state = s[0:3] + s[6:8] # delta_x, delta_y, theta, fill_level, spillage
+                    # state = s[0:3] + s[6:8] # delta_x, delta_y, theta, fill_level, spillage
+                    state = s
 
                     valid_hidden_c = state_initialiser(shape=(1,actor.rnn_size),mode='g')
                     valid_hidden_m = state_initialiser(shape=(1,actor.rnn_size),mode='g')
@@ -434,10 +445,11 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
 
                         action, init_valid_hidden = actor.predict(input_s, input_g, init_valid_hidden)
 
-                        s2, r, terminal, info, collision = env.step(action, goal)
+                        s2, r, valid_terminal, info, collision = env.step(action, goal)
 
                         # NOTE: Lets remove previous action and filling rate from state, given that we have recurrency
-                        next_state = s2[0:3] + s2[6:8] # delta_x, delta_y, theta, fill_level, spillage
+                        # next_state = s2[0:3] + s2[6:8] # delta_x, delta_y, theta, fill_level, spillage
+                        next_state = s2
 
                         valid_r += r
                         valid_collision += int(collision)
@@ -572,6 +584,9 @@ def main(_):
                         # Restore memory reply
                         if not args.new_mem_reply:
                             replay_buffer.load_pickle()
+                            print('***********************')
+                            print('Load RM: ', replay_buffer.size())
+                            print('***********************')
                 else:
                     def restore_model(sess):
                         actor.set_session(sess)
@@ -589,7 +604,7 @@ def main(_):
                     restore_model(sess)
                     env = Preon_env(opt.env_params)
 
-                    train(sess, env, actor, critic, saver, global_step, step_op)
+                    train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer)
 
 
     else:           # When testing

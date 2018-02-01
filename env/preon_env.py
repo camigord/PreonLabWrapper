@@ -21,30 +21,34 @@ class Preon_env():
     def reset(self, source_height = 10):
         self.env = PreonScene(self.args, source_height)
         self.time_per_frame = self.env.timestep_per_frame
+        self.frames_per_action = self.args.frames_per_action
         self.frame_rate = self.env.frame_rate
-        self.max_steps = int(np.ceil(self.max_time * self.frame_rate / self.env.frames_per_action))
+        self.max_steps = int(np.ceil(self.max_time * self.frame_rate / self.frames_per_action))
         self.current_step = 0
 
-        state = list(self.env.get_state())
+        normalized_state, clean_state = self.env.get_state()
 
-        #self.last_state = state[3:]         # Poured and spilled volumes in last step - initially it is just the starting values
-        #flow_rate = 0.0
+        self.last_level_clean = clean_state['fill_level']
+        self.last_level_noisy = normalized_state['fill_level_norm']   # self.last_level_noisy = normalized_state['fill_level']
 
-        self.last_state = state[5]
-        filling_rate = get_normalized(0.0, 0.0, 1.0)
-        state = state[0:3] + list([0.0, 0.0, 0.0]) + state[3:5] + [filling_rate]
-        #state.append(flow_rate)
-        #state.append(filling_rate)
+        filling_rate = 0.0
+        clean_state['filling_rate'] = filling_rate
 
-        return state, self.env.get_info()
+        filling_rate_norm = get_normalized(filling_rate, 0.0, 1.0)
+        normalized_state['filling_rate_norm'] = filling_rate_norm
+        normalized_state['action_x'] = 0.0
+        normalized_state['action_y'] = 0.0
+        normalized_state['action_angle'] = 0.0
+
+        return normalized_state, clean_state, self.env.get_info()
 
     def predict_collision(self, vel_x, vel_y, vel_theta):
         # Get current position of both cups
         cup1_pos, cup1_angle, cup2_pos, cup2_angle = self.env.get_cups_location()
 
         # Estimate future position based on current pos and velocities
-        cup1_pos += self.time_per_frame * np.array([vel_x, vel_y])
-        cup1_angle += self.time_per_frame * vel_theta
+        cup1_pos += (self.time_per_frame*self.frames_per_action) * np.array([vel_x, vel_y])
+        cup1_angle += (self.time_per_frame*self.frames_per_action) * vel_theta
 
         # Collision detection:
         # First we need the 4 points defining the vertices of the cups  (Position of cup is with respect to the center of the cup)
@@ -62,7 +66,7 @@ class Preon_env():
     def is_out_of_range(self, vel_x, vel_y):
         cup1_pos, cup1_angle, _, _ = self.env.get_cups_location()
         # Estimate future position based on current pos and velocities
-        cup1_pos += self.time_per_frame * np.array([vel_x, vel_y])
+        cup1_pos += (self.time_per_frame*self.frames_per_action) * np.array([vel_x, vel_y])
 
         if cup1_pos[0] > self.max_x or cup1_pos[0] < self.min_x or cup1_pos[1] > self.max_y or cup1_pos[1] < self.min_y:
             return True
@@ -91,18 +95,31 @@ class Preon_env():
 
 
         # Get environment state
-        state = list(self.env.get_state())
-        filling_rate = state[5] - self.last_state
-        filling_rate = get_normalized(filling_rate, 0.0, 1.0)
-        self.last_state = state[5]
+        normalized_state, clean_state = self.env.get_state()
 
-        # Add velocities and flow_rate to state
-        # state = state[0:3] + list(action) + state[3:5] + [filling_rate]
+        # Compute filling rate
+        filling_rate = clean_state['fill_level'] - self.last_level_clean
+        clean_state['filling_rate'] = filling_rate
+
+        # filling_rate_noisy = normalized_state['fill_level'] - self.last_level_noisy
+        # filling_rate_norm = get_normalized(filling_rate_noisy, 0.0, 1.0)            # NOTE: due to noise, filling_rate_noisy could actually be negative. Normalization assumes we can neglect that...
+        filling_rate_noisy = normalized_state['fill_level_norm'] - self.last_level_noisy
+        filling_rate_norm = filling_rate_noisy
+
+        normalized_state['filling_rate_norm'] = filling_rate_norm
+
+        self.last_level_clean = clean_state['fill_level']
+        self.last_level_noisy = normalized_state['fill_level_norm'] # normalized_state['fill_level']
+
+        # Add velocities (previous action) to state
         # Normalizing previous action so that all inputs remain within the same range [-1,1]
         norm_action = [delta_x/self.args.max_lin_disp, delta_y/self.args.max_lin_disp, delta_theta/self.args.max_ang_disp]
-        state = state[0:3] + norm_action + state[3:5] + [filling_rate]
 
-        # Determine if the episode is over -- current_step is necessary to keep track of progress even when collition is detected and simulation doesnt advance in time
+        normalized_state['action_x'] = norm_action[0]
+        normalized_state['action_y'] = norm_action[1]
+        normalized_state['action_angle'] = norm_action[2]
+
+        # Determine if the episode is over -- current_step is necessary to keep track of progress even when collision is detected and simulation doesnt advance in time
         if self.current_step >= self.max_steps or self.get_elapsed_time() >= self.max_time:
             terminal = True
         else:
@@ -112,9 +129,7 @@ class Preon_env():
 
         # Compute reward
         if reward is None:
-            dict_state = {'fill_level': state[6],
-                          'spillage': state[7]}
-            if self.was_goal_reached(dict_state, goal):
+            if self.was_goal_reached(normalized_state, goal):
                 reward = self.goal_reward
 
                 '''# Encourage No-op action once goal has been reached
@@ -126,12 +141,12 @@ class Preon_env():
                 # NOTE: Trying same reward for collision and step
                 #reward = self.collision_cost
 
-        return state, reward, terminal, self.env.get_info(), collision
+        return normalized_state, reward, terminal, self.env.get_info(), collision, clean_state
 
     def was_goal_reached(self, dict_state, goal):
         # Values are normalized, we need to convert them back
         goal = [get_denormalized(goal[0],0.0,1.0), get_denormalized(goal[1],0.0,self.max_volume)]
-        current_vol_state = [get_denormalized(dict_state['fill_level'],0.0,1.0), get_denormalized(dict_state['spillage'],0.0,self.max_volume)]
+        current_vol_state = [dict_state['fill_level'], get_denormalized(dict_state['spilled_vol_norm'],0.0,self.max_volume)]
 
         dist_to_goal = np.absolute(np.array(current_vol_state) - np.array(goal))
         if dist_to_goal[0] > self.goal_threshold[0] or dist_to_goal[1] > self.goal_threshold[1]:
@@ -140,12 +155,11 @@ class Preon_env():
             # Goal was reached
             return True
 
-    def estimate_new_reward(self,dict_state,goal,reward):
+    def estimate_new_reward(self, dict_state, goal, reward):
         '''
         Estimates a new reward based on the new goal. If previous reward corresponds to a collision, returns the same reward.
          - dict_state is the next_state after performing an action in the current transition (dictionary containing relevant keys to compute reward)
         '''
-        # NOTE: Trying same reward for collision and step
         if reward != self.collision_cost:
             if self.was_goal_reached(dict_state, goal):
                 reward = self.goal_reward

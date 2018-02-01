@@ -19,7 +19,7 @@ class Policy(object):
         self.sess = sess
 
         # Define the policy network
-        self.actor = ActorNetwork(self.opt.agent_params.state_dim, self.opt.agent_params.action_dim, self.opt.agent_params.goal_dim, 0.0, 1.0, self.opt.env_params)
+        self.actor = ActorNetwork(self.opt)
 
         # Init operation and saver (to restore model)
         self.init_op = tf.global_variables_initializer()
@@ -60,7 +60,8 @@ class Policy(object):
         # Normalizing state
         pos_x_norm = get_normalized(state[0], self.opt.env_params.min_x_dist, self.opt.env_params.max_x_dist)
         pos_y_norm = get_normalized(state[1], self.opt.env_params.min_y_dist, self.opt.env_params.max_y_dist)
-        theta_angle_norm = get_normalized(state[2], 0.0, 360.0)
+        theta_angle = state[2] % 360.0          # Making sure angle is positive before Normalizing
+        theta_angle_norm = get_normalized(theta_angle, 0.0, 360.0)
         action_x_norm = get_normalized(state[3], -self.opt.env_params.max_lin_disp, self.opt.env_params.max_lin_disp)   # state[3]
         action_y_norm = get_normalized(state[4], -self.opt.env_params.max_lin_disp, self.opt.env_params.max_lin_disp)   # state[4]
         action_theta_norm = get_normalized(state[5], -self.opt.env_params.max_ang_disp, self.opt.env_params.max_ang_disp) # state[5]
