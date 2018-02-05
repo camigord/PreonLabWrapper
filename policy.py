@@ -62,9 +62,9 @@ class Policy(object):
         pos_y_norm = get_normalized(state[1], self.opt.env_params.min_y_dist, self.opt.env_params.max_y_dist)
         theta_angle = state[2] % 360.0          # Making sure angle is positive before Normalizing
         theta_angle_norm = get_normalized(theta_angle, 0.0, 360.0)
-        action_x_norm = get_normalized(state[3], -self.opt.env_params.max_lin_disp, self.opt.env_params.max_lin_disp)   # state[3]
-        action_y_norm = get_normalized(state[4], -self.opt.env_params.max_lin_disp, self.opt.env_params.max_lin_disp)   # state[4]
-        action_theta_norm = get_normalized(state[5], -self.opt.env_params.max_ang_disp, self.opt.env_params.max_ang_disp) # state[5]
+        action_x_norm = state[3]   # get_normalized(state[3], -self.opt.env_params.max_lin_disp, self.opt.env_params.max_lin_disp)
+        action_y_norm = state[4]
+        action_theta_norm = state[5]
         fill_level_norm = get_normalized(state[6], 0.0, 1.0)
         spilled_vol_norm = get_normalized(state[7], 0.0, self.opt.env_params.max_volume)
         filling_rate_norm = get_normalized(state[8], 0.0, 1.0)

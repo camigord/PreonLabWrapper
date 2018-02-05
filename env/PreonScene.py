@@ -5,8 +5,8 @@ import os
 from utils.utils import *
 import logging
 
-logging.basicConfig(filename='test.log',level=logging.DEBUG)
-logging.debug('This message should go to the log file')
+logging.basicConfig(filename='log_file.log',level=logging.DEBUG)
+logging.debug('Starting Log')
 
 '''
 PreonScene interfaces our code with a PreonLab Scene. It allows us to interact with the scene by performing actions and it allows us to capture the current state of the scene.
@@ -126,13 +126,13 @@ class PreonScene():
                        'fill_level': fill_level,
                        'spilled_vol': spilled_vol}
 
-        # NOTE: Adding noise
-        dist_x += np.random.normal(0.0, self.args.noise_x)
-        dist_y += np.random.normal(0.0, self.args.noise_y)
-        theta_angle += np.random.normal(0.0, self.args.noise_theta)
-        fill_level += np.random.normal(0.0, self.args.noise_fill_level)
-
-        theta_angle = theta_angle % 360.0
+        if self.args.add_noise:
+            # NOTE: Adding noise
+            dist_x += np.random.normal(0.0, self.args.noise_x)
+            dist_y += np.random.normal(0.0, self.args.noise_y)
+            theta_angle += np.random.normal(0.0, self.args.noise_theta)
+            fill_level += np.random.normal(0.0, self.args.noise_fill_level)
+            theta_angle = theta_angle % 360.0
 
         # Normalizing
         # NOTE: if the level overshoots above cup's capacity, fill_level may become larger than 1, I assume we can neglect that.

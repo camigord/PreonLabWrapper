@@ -8,6 +8,7 @@ import tflearn
 import sys
 import os
 import argparse
+from utils.ou_noise import OUNoise
 
 from networks import ActorNetwork, CriticNetwork
 from utils.replay_buffer import ReplayBuffer
@@ -82,6 +83,17 @@ def build_summaries():
     training_summaries.append(tf.summary.histogram("Filling_rates", filling_rates))
     training_poured_percent = tf.Variable(0.)
     training_summaries.append(tf.summary.scalar("Training_Pouring_percentage", training_poured_percent))
+    actor_loss = tf.Variable(0.)
+    training_summaries.append(tf.summary.scalar("Actor_Loss", actor_loss))
+    actor_preact_loss = tf.Variable(0.)
+    training_summaries.append(tf.summary.scalar("Actor_Preactivation_Loss", actor_preact_loss))
+    # Action histograms
+    action_x_hist = tf.placeholder(tf.float32)
+    training_summaries.append(tf.summary.histogram("Action_X", action_x_hist))
+    action_y_hist = tf.placeholder(tf.float32)
+    training_summaries.append(tf.summary.histogram("Action_Y", action_y_hist))
+    action_theta_hist = tf.placeholder(tf.float32)
+    training_summaries.append(tf.summary.histogram("Action_Theta", action_theta_hist))
 
     train_ops = tf.summary.merge(training_summaries)
 
@@ -99,17 +111,19 @@ def build_summaries():
     valid_ops = tf.summary.merge(valid_summaries)
 
     valid_vars = [valid_Reward, valid_collision, valid_poured_percent, valid_spillage]
-    training_vars = [episode_reward, episode_ave_max_q, value_loss, collision_rate, avg_spillage, extra_goals, filling_rates, training_poured_percent]
+    training_vars = [episode_reward, episode_ave_max_q, value_loss, collision_rate, avg_spillage,
+                     extra_goals, filling_rates, training_poured_percent, actor_loss, actor_preact_loss,
+                     action_x_hist, action_y_hist, action_theta_hist]
 
     return train_ops, valid_ops, training_vars, valid_vars
 
 
 def generate_new_goal(args, init_volume, cup_capacity):
-    fill_level = np.random.randint(1, 11) / float(10)
+    fill_level = np.random.randint(2, 11) / float(10)
 
     # We first make sure that the goal is realistic
     while fill_level*cup_capacity > init_volume:
-        fill_level = np.random.randint(1, fill_level*10) / float(10)
+        fill_level = np.random.randint(2, fill_level*10) / float(10)
 
     desired_spilled_vol = 0.0
 
@@ -146,8 +160,14 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
 
     writer = tf.summary.FileWriter(SUMMARY_DIR, sess.graph)
 
+    # Initialize Ornstein-Uhlenbeck process for action exploration
+    exploration_noise = OUNoise(actor.a_dim)
+
     validation_step = 0
     for i in range(MAX_EPISODES):
+        # Re-iniitialize the random process when an episode ends
+        exploration_noise.reset()
+
         current_step = sess.run(global_step)
 
         #init_height = np.random.randint(2, 11)
@@ -159,18 +179,28 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
         ep_reward = 0
         ep_ave_max_q = 0
         value_loss = 0
+        actor_loss = 0
+        actor_preactivation_loss = 0
         ep_collisions = 0
         ep_extra_goals = 0
         filling_rates = []
+        action_x_hist = []
+        action_y_hist = []
+        action_theta_hist = []
 
         for j in range(env.max_steps+1):
 
             # Added exploration noise
             input_s = np.reshape(s, (1, actor.s_dim))
             input_g = np.reshape(goal, (1, actor.goal_dim))
-            a = actor.predict(input_s, input_g) + (1. / (1. + current_step))
+            a = actor.predict(input_s, input_g) # + (1. / (1. + current_step))
 
-            normalized_next_state, r, terminal, info, collision, clean_state = env.step(a[0], goal)
+            noise = exploration_noise.noise()
+            #noise = (1. / (1. + current_step))
+            no_noise_action = a[0]
+            a = a[0] + noise
+
+            normalized_next_state, r, terminal, info, collision, clean_state = env.step(a, goal)
             s2 = get_state_as_list(normalized_next_state)
 
             replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(goal, (actor.goal_dim,)),
@@ -214,7 +244,10 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
                 a_outs = actor.predict(s_batch, g_batch)
                 grads = critic.action_gradients(s_batch, g_batch, a_outs)
 
+                # actor_t_loss, actor_preac_loss = actor.train(s_batch, g_batch, grads[0])
                 actor.train(s_batch, g_batch, grads[0])
+                actor_loss += 0 # actor_t_loss
+                actor_preactivation_loss += 0 # actor_preac_loss
 
                 # Update target networks
                 actor.update_target_network()
@@ -226,6 +259,9 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
             ep_reward += r
             ep_collisions += int(collision)
             filling_rates.append(clean_state['filling_rate'])
+            action_x_hist.append(no_noise_action[0])
+            action_y_hist.append(no_noise_action[1])
+            action_theta_hist.append(no_noise_action[2])
 
             if terminal:
                 episode_spillage = clean_state['spilled_vol']
@@ -243,7 +279,12 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
                     training_vars[4]: episode_spillage,
                     training_vars[5]: ep_extra_goals,
                     training_vars[6]: np.array(filling_rates),
-                    training_vars[7]: train_percentage_poured
+                    training_vars[7]: train_percentage_poured,
+                    training_vars[8]: actor_loss / float(j),
+                    training_vars[9]: actor_preactivation_loss / float(j),
+                    training_vars[10]: np.array(action_x_hist),
+                    training_vars[11]: np.array(action_y_hist),
+                    training_vars[12]: np.array(action_theta_hist)
                 })
                 writer.add_summary(summary_str, current_step)
                 writer.flush()
@@ -328,9 +369,9 @@ def test(policy, env, test_goal, scene_name):
         state.append(get_denormalized(s[0], opt.env_params.min_x_dist, opt.env_params.max_x_dist))
         state.append(get_denormalized(s[1], opt.env_params.min_y_dist, opt.env_params.max_y_dist))
         state.append(get_denormalized(s[2], 0.0, 360.0))
-        state.append(get_denormalized(s[3], -opt.env_params.max_lin_disp, opt.env_params.max_lin_disp))
-        state.append(get_denormalized(s[4], -opt.env_params.max_lin_disp, opt.env_params.max_lin_disp))
-        state.append(get_denormalized(s[5], -opt.env_params.max_ang_disp, opt.env_params.max_ang_disp))
+        state.append(s[3])
+        state.append(s[4])
+        state.append(s[5])              # get_denormalized(s[5], -opt.env_params.max_ang_disp, opt.env_params.max_ang_disp)
         state.append(get_denormalized(s[6], 0.0, 1.0))
         state.append(get_denormalized(s[7], 0.0, opt.env_params.max_volume))
         state.append(get_denormalized(s[8], 0.0, 1.0))
@@ -364,15 +405,6 @@ def test(policy, env, test_goal, scene_name):
     print('Saving scene...')
     env.save_scene(os.getcwd()+opt.saved_scenes_dir+scene_name)
     print('Completed')
-
-    print('Action in X ', len(action_x))
-    print(action_x)
-    print('Action in Y ', len(action_y))
-    print(action_y)
-    print('Rotation ', len(action_theta))
-    print(action_theta)
-    print('Collision ', len(collisions))
-    print(collisions)
 
 
 def main(_):

@@ -22,13 +22,17 @@ class ActorNetwork(object):
         self.max_lin_disp = args.env_params.max_lin_disp
         self.max_ang_disp = args.env_params.max_ang_disp
         self.args = args
+        self.l2_reg = 1e-4
+        self.std = 1e-3
 
         # Actor Network
-        self.inputs, self.goal, self.out, self.scaled_out = self.create_actor_network()
+        self.inputs, self.goal, self.out = self.create_actor_network('actor_network')
+        #self.inputs, self.goal, self.out, self.preactivations = self.create_actor_network('actor_network')
         self.network_params = tf.trainable_variables()
 
         # Target Network
-        self.target_inputs, self.target_goal, self.target_out, self.target_scaled_out = self.create_actor_network()
+        self.target_inputs, self.target_goal, self.target_out = self.create_actor_network('actor_network')
+        #self.target_inputs, self.target_goal, self.target_out, _ = self.create_actor_network('target_actor')
         self.target_network_params = tf.trainable_variables()[len(self.network_params):]
 
         # Op for periodically updating target network with online network weights
@@ -41,16 +45,49 @@ class ActorNetwork(object):
         self.action_gradient = tf.placeholder(tf.float32, [None, self.a_dim])
 
         # Combine the gradients here
-        # Partial derivatives of scaled_out w.r.t network_params. action_gradient holds the initial gradients for each scaled_out
-        self.actor_gradients = tf.gradients(self.scaled_out, self.network_params, -self.action_gradient)
+        # Partial derivatives of output w.r.t network_params. action_gradient holds the initial gradients for each output
+        self.actor_gradients = tf.gradients(self.out, self.network_params, -self.action_gradient)
 
         # Optimization Op
         self.optimize = tf.train.AdamOptimizer(self.learning_rate).\
             apply_gradients(zip(self.actor_gradients, self.network_params))
 
+        # Regularize preactivations to prevent saturation of the output layer
+        #reg_variables = tf.losses.get_regularization_losses(scope="actor_network")
+        #self.regularization_loss = tf.reduce_sum(reg_variables)
+        #self.preactivation_loss = tf.multiply(tf.reduce_mean(tf.square(self.preactivations)), 1e-5)
+        #self.total_loss = self.regularization_loss  # + self.preactivation_loss
+        # self.optimize_reg = tf.train.AdamOptimizer(self.learning_rate).minimize(self.total_loss)
+
         self.num_trainable_vars = len(self.network_params) + len(self.target_network_params)
 
-    def create_actor_network(self):
+    def create_actor_network(self, scope):
+        '''
+        # tf.contrib.layers.xavier_initializer()
+        with tf.variable_scope(scope):
+            inputs = tf.placeholder(tf.float32, [None, self.s_dim])
+            goal = tf.placeholder(tf.float32, [None, self.goal_dim])
+
+            net_state = tf.layers.dense(inputs, 500, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+            net_goal = tf.layers.dense(goal, 200, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+
+            net = tf.concat ([net_state, net_goal], axis=1)
+
+            net = tf.layers.dense(net, 400, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+            net = tf.layers.dense(net, 300, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+
+            # Final layer weights are init to Uniform[-3e-3, 3e-3](NOTE: Not any more)  # tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
+            preactivations = tf.layers.dense(net, self.a_dim, activation=None, kernel_initializer=tf.random_uniform_initializer(minval=-0.003, maxval=0.003),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+
+            out = tf.tanh(preactivations)
+
+        return inputs, goal, out, preactivations
+        '''
         inputs = tflearn.input_data(shape=[None, self.s_dim])
         goal = tflearn.input_data(shape=[None, self.goal_dim])
 
@@ -68,8 +105,8 @@ class ActorNetwork(object):
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
         out = tflearn.fully_connected(net, self.a_dim, activation='tanh', weights_init=w_init, regularizer='L2')
         # Scale output to -action_bound to action_bound
-        scaled_out = tf.multiply(out, [self.max_lin_disp, self.max_lin_disp, self.max_ang_disp])
-        return inputs, goal, out, scaled_out
+        # scaled_out = tf.multiply(out, [self.max_lin_disp, self.max_lin_disp, self.max_ang_disp])
+        return inputs, goal, out
 
     def set_session(self,sess):
         self.sess = sess
@@ -80,15 +117,24 @@ class ActorNetwork(object):
             self.goal: goals,
             self.action_gradient: a_gradient
         })
+    '''
+    def train(self, inputs, goals, a_gradient):
+        _, total_loss, preac_loss = self.sess.run([self.optimize, self.total_loss, self.preactivation_loss], feed_dict={
+            self.inputs: inputs,
+            self.goal: goals,
+            self.action_gradient: a_gradient
+        })
+        return total_loss, preac_loss
+    '''
 
     def predict(self, inputs, goals):
-        return self.sess.run(self.scaled_out, feed_dict={
+        return self.sess.run(self.out, feed_dict={
             self.inputs: inputs,
             self.goal: goals,
         })
 
     def predict_target(self, inputs, goals):
-        return self.sess.run(self.target_scaled_out, feed_dict={
+        return self.sess.run(self.target_out, feed_dict={
             self.target_inputs: inputs,
             self.target_goal: goals,
         })
@@ -120,13 +166,15 @@ class CriticNetwork(object):
         self.tau = args.agent_params.tau
         self.args = args
         self.num_actor_vars = num_actor_vars
+        self.l2_reg = 1e-4
+        self.std = 1e-3
 
         # Create the critic network
-        self.inputs, self.goals, self.action, self.out = self.create_critic_network()
+        self.inputs, self.goals, self.action, self.out = self.create_critic_network('critic_network')
         self.network_params = tf.trainable_variables()[num_actor_vars:]
 
         # Target Network
-        self.target_inputs, self.target_goals, self.target_action, self.target_out = self.create_critic_network()
+        self.target_inputs, self.target_goals, self.target_action, self.target_out = self.create_critic_network('target_critic')
         self.target_network_params = tf.trainable_variables()[(len(self.network_params) + num_actor_vars):]
 
         # Op for periodically updating target network with online network weights with regularization
@@ -136,11 +184,17 @@ class CriticNetwork(object):
 
         # Network target (y_i)
         self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
-        self.update_length = tf.placeholder(tf.int32)
 
         self.clipped_value = tf.clip_by_value(self.predicted_q_value, -100.0, 0.0)  # Clip targets to range of possible values [-1/(1-gamma), 0]
 
+        # Get regularization loss
+        #reg_variables = tf.losses.get_regularization_losses(scope="critic_network")
+        #self.regularization_loss = tf.reduce_sum(reg_variables)
+
         # Define loss and optimization Op
+        #self.loss = tf.reduce_mean(tf.square(self.clipped_value - self.out)) + self.regularization_loss
+        #self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+
         self.loss = tflearn.mean_square(self.clipped_value, self.out)
         self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
@@ -155,7 +209,34 @@ class CriticNetwork(object):
     def set_session(self,sess):
         self.sess = sess
 
-    def create_critic_network(self):
+    def create_critic_network(self, scope):
+        '''
+        with tf.variable_scope(scope):
+            inputs = tf.placeholder(tf.float32, [None, self.s_dim])
+            goals = tf.placeholder(tf.float32, [None, self.goal_dim])
+            action = tf.placeholder(tf.float32, [None, self.a_dim])
+
+            net_state = tf.layers.dense(inputs, 500, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+            net_goal = tf.layers.dense(goals, 200, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+
+            net = tf.concat ([net_state, net_goal, action], axis=1)
+
+            net = tf.layers.dense(net, 400, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+            net = tf.layers.dense(net, 200, activation=tf.nn.elu, kernel_initializer=tf.truncated_normal_initializer(stddev=self.std),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+
+            # linear layer connected to 1 output representing Q(s,a)
+            # Weights are init to Uniform[-3e-3, 3e-3]      # tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
+            preactivations = tf.layers.dense(net, 1, activation=None, kernel_initializer=tf.random_uniform_initializer(minval=-0.003, maxval=0.003),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg))
+
+            out = tf.tanh(preactivations)
+
+        return inputs, goals, action, out
+        '''
         inputs = tflearn.input_data(shape=[None, self.s_dim])
         goals = tflearn.input_data(shape=[None, self.goal_dim])
         action = tflearn.input_data(shape=[None, self.a_dim])
@@ -179,6 +260,7 @@ class CriticNetwork(object):
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
         out = tflearn.fully_connected(net, 1, weights_init=w_init, regularizer='L2')
         return inputs, goals, action, out
+
 
     def train(self, inputs, goals, action, predicted_q_value):
         return self.sess.run([self.out, self.optimize, self.loss], feed_dict={

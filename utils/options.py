@@ -15,13 +15,10 @@ class AgentParams():  # hyperparameters for drl agents
         self.state_dim = 9
         self.action_dim = 3
         self.goal_dim = 2
-        self.rnn_size = 200
-        self.trace_length = 10
-        self.opt_length = 10
 
         # hyperparameters
-        self.batch_size       = 40       # batch size during training
-        self.rm_size          = 10000    # memory replay maximum size
+        self.batch_size       = 64        # batch size during training
+        self.rm_size          = 100000    # memory replay maximum size
         self.min_memory_size  = self.batch_size * 5    # The minimum number of episodes in memory replay before starting training
         self.gamma            = 0.99     # Discount factor
         self.critic_lr        = 0.001    # Learning rate for critic
@@ -29,8 +26,7 @@ class AgentParams():  # hyperparameters for drl agents
 
         self.tau              = 0.001    # moving average for target network
 
-        self.max_augmented_goals = 4        # Maximum number of additional goals to sample and add to replay memory per episode
-        self.valid_freq       = 50
+        self.valid_freq       = 25
 
 class EnvParams():          # Settings for simulation environment
     def __init__(self):
@@ -50,12 +46,13 @@ class EnvParams():          # Settings for simulation environment
 
         self.max_volume       = 398.0             # Maximum initial volume in milliliters
 
-        self.frames_per_action = 2                # How many frames to run before selecting a new action
+        self.frames_per_action = 1                # How many frames to run before selecting a new action
 
         self.safety_boundary   = 0                # Safety boundary around destination cup to avoid collisions in real worls (in cm)
 
         self.test_path        = "./training_scenes/scene0_realmodels.prscene"  # Path to the PreonLab scene
 
+        self.add_noise = True                     # Whether to add noise or not
         self.noise_x          = 0.5               # Measurement noise (std) in cm
         self.noise_y          = 0.5               # Measurement noise (std) in cm
         self.noise_theta      = 3.0               # Measurement noise (std) in degrees

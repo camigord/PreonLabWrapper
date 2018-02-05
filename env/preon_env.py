@@ -29,7 +29,7 @@ class Preon_env():
         normalized_state, clean_state = self.env.get_state()
 
         self.last_level_clean = clean_state['fill_level']
-        self.last_level_noisy = normalized_state['fill_level_norm']   # self.last_level_noisy = normalized_state['fill_level']
+        self.last_level_noisy = normalized_state['fill_level']   # self.last_level_noisy = normalized_state['fill_level_norm']
 
         filling_rate = 0.0
         clean_state['filling_rate'] = filling_rate
@@ -80,6 +80,11 @@ class Preon_env():
         collision = False
         delta_x, delta_y, delta_theta = action
 
+        # Scaling the actions
+        delta_x *= self.args.max_lin_disp
+        delta_y *= self.args.max_lin_disp
+        delta_theta *= self.args.max_ang_disp
+
         # The required velocities in (cm/s or degree/s) are equal to the displacement time the number of frames per second
         vel_x, vel_y, vel_theta = self.frame_rate * np.array([delta_x, delta_y, delta_theta])
 
@@ -101,23 +106,22 @@ class Preon_env():
         filling_rate = clean_state['fill_level'] - self.last_level_clean
         clean_state['filling_rate'] = filling_rate
 
-        # filling_rate_noisy = normalized_state['fill_level'] - self.last_level_noisy
-        # filling_rate_norm = get_normalized(filling_rate_noisy, 0.0, 1.0)            # NOTE: due to noise, filling_rate_noisy could actually be negative. Normalization assumes we can neglect that...
-        filling_rate_noisy = normalized_state['fill_level_norm'] - self.last_level_noisy
-        filling_rate_norm = filling_rate_noisy
+        filling_rate_noisy = normalized_state['fill_level'] - self.last_level_noisy
+        filling_rate_noisy = max(0, filling_rate_noisy)     # Avoid negative filling_rates
+        filling_rate_norm = get_normalized(filling_rate_noisy, 0.0, 1.0)
 
         normalized_state['filling_rate_norm'] = filling_rate_norm
 
         self.last_level_clean = clean_state['fill_level']
-        self.last_level_noisy = normalized_state['fill_level_norm'] # normalized_state['fill_level']
+        self.last_level_noisy = normalized_state['fill_level'] # normalized_state['fill_level_norm']
 
         # Add velocities (previous action) to state
         # Normalizing previous action so that all inputs remain within the same range [-1,1]
-        norm_action = [delta_x/self.args.max_lin_disp, delta_y/self.args.max_lin_disp, delta_theta/self.args.max_ang_disp]
+        #norm_action = [delta_x/self.args.max_lin_disp, delta_y/self.args.max_lin_disp, delta_theta/self.args.max_ang_disp]
 
-        normalized_state['action_x'] = norm_action[0]
-        normalized_state['action_y'] = norm_action[1]
-        normalized_state['action_angle'] = norm_action[2]
+        normalized_state['action_x'] = action[0]
+        normalized_state['action_y'] = action[1]
+        normalized_state['action_angle'] = action[2]
 
         # Determine if the episode is over -- current_step is necessary to keep track of progress even when collision is detected and simulation doesnt advance in time
         if self.current_step >= self.max_steps or self.get_elapsed_time() >= self.max_time:
@@ -131,15 +135,8 @@ class Preon_env():
         if reward is None:
             if self.was_goal_reached(normalized_state, goal):
                 reward = self.goal_reward
-
-                '''# Encourage No-op action once goal has been reached
-                if abs(delta_x) < 0.001 and abs(delta_y) < 0.001 and abs(delta_theta) < 0.001:
-                    reward = self.goal_reward
-                    '''
             else:
                 reward = self.step_cost
-                # NOTE: Trying same reward for collision and step
-                #reward = self.collision_cost
 
         return normalized_state, reward, terminal, self.env.get_info(), collision, clean_state
 
@@ -165,8 +162,6 @@ class Preon_env():
                 reward = self.goal_reward
             else:
                 reward = self.step_cost
-                # NOTE: Trying same reward for collision and step
-                #reward = self.collision_cost
         return reward
 
     def get_elapsed_time(self):
