@@ -18,8 +18,8 @@ class Preon_env():
         self.max_y = args.max_y
         self.max_volume = args.max_volume
 
-    def reset(self, source_height = 10):
-        self.env = PreonScene(self.args, source_height)
+    def reset(self, source_height = 10, test_scene=None):
+        self.env = PreonScene(self.args, source_height, test_scene)
         self.time_per_frame = self.env.timestep_per_frame
         self.frames_per_action = self.args.frames_per_action
         self.frame_rate = self.env.frame_rate
@@ -43,6 +43,9 @@ class Preon_env():
         return normalized_state, clean_state, self.env.get_info()
 
     def predict_collision(self, vel_x, vel_y, vel_theta):
+        '''
+        Detects collision between cups before executing the action
+        '''
         # Get current position of both cups
         cup1_pos, cup1_angle, cup2_pos, cup2_angle = self.env.get_cups_location()
 
@@ -64,6 +67,9 @@ class Preon_env():
             return False
 
     def is_out_of_range(self, vel_x, vel_y):
+        '''
+        Determines if Cup1 will move out of the operation space and triggers collision alarm if so
+        '''
         cup1_pos, cup1_angle, _, _ = self.env.get_cups_location()
         # Estimate future position based on current pos and velocities
         cup1_pos += (self.time_per_frame*self.frames_per_action) * np.array([vel_x, vel_y])
@@ -85,7 +91,7 @@ class Preon_env():
         delta_y *= self.args.max_lin_disp
         delta_theta *= self.args.max_ang_disp
 
-        # The required velocities in (cm/s or degree/s) are equal to the displacement time the number of frames per second
+        # The required velocities in (cm/s or degree/s) are equal to the displacement * the number of frames per second
         vel_x, vel_y, vel_theta = self.frame_rate * np.array([delta_x, delta_y, delta_theta])
 
         reward = None
@@ -115,10 +121,6 @@ class Preon_env():
         self.last_level_clean = clean_state['fill_level']
         self.last_level_noisy = normalized_state['fill_level'] # normalized_state['fill_level_norm']
 
-        # Add velocities (previous action) to state
-        # Normalizing previous action so that all inputs remain within the same range [-1,1]
-        #norm_action = [delta_x/self.args.max_lin_disp, delta_y/self.args.max_lin_disp, delta_theta/self.args.max_ang_disp]
-
         normalized_state['action_x'] = action[0]
         normalized_state['action_y'] = action[1]
         normalized_state['action_angle'] = action[2]
@@ -141,6 +143,9 @@ class Preon_env():
         return normalized_state, reward, terminal, self.env.get_info(), collision, clean_state
 
     def was_goal_reached(self, dict_state, goal):
+        '''
+        Checks if the goal was reached by analyzing the state, the goal, and the margin thresholds
+        '''
         # Values are normalized, we need to convert them back
         goal = [get_denormalized(goal[0],0.0,1.0), get_denormalized(goal[1],0.0,self.max_volume)]
         current_vol_state = [dict_state['fill_level'], get_denormalized(dict_state['spilled_vol_norm'],0.0,self.max_volume)]

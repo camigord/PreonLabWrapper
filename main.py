@@ -14,6 +14,8 @@ from networks import ActorNetwork, CriticNetwork
 from utils.replay_buffer import ReplayBuffer
 from policy import Policy
 
+import pickle
+
 '''
 /////   DDPG - DISTRIBUTED APPROACH
 '''
@@ -83,10 +85,6 @@ def build_summaries():
     training_summaries.append(tf.summary.histogram("Filling_rates", filling_rates))
     training_poured_percent = tf.Variable(0.)
     training_summaries.append(tf.summary.scalar("Training_Pouring_percentage", training_poured_percent))
-    actor_loss = tf.Variable(0.)
-    training_summaries.append(tf.summary.scalar("Actor_Loss", actor_loss))
-    actor_preact_loss = tf.Variable(0.)
-    training_summaries.append(tf.summary.scalar("Actor_Preactivation_Loss", actor_preact_loss))
     # Action histograms
     action_x_hist = tf.placeholder(tf.float32)
     training_summaries.append(tf.summary.histogram("Action_X", action_x_hist))
@@ -112,8 +110,7 @@ def build_summaries():
 
     valid_vars = [valid_Reward, valid_collision, valid_poured_percent, valid_spillage]
     training_vars = [episode_reward, episode_ave_max_q, value_loss, collision_rate, avg_spillage,
-                     extra_goals, filling_rates, training_poured_percent, actor_loss, actor_preact_loss,
-                     action_x_hist, action_y_hist, action_theta_hist]
+                     extra_goals, filling_rates, training_poured_percent, action_x_hist, action_y_hist, action_theta_hist]
 
     return train_ops, valid_ops, training_vars, valid_vars
 
@@ -179,8 +176,6 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
         ep_reward = 0
         ep_ave_max_q = 0
         value_loss = 0
-        actor_loss = 0
-        actor_preactivation_loss = 0
         ep_collisions = 0
         ep_extra_goals = 0
         filling_rates = []
@@ -220,7 +215,7 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
 
 
             # Keep adding experience to the memory until there are at least minibatch size samples
-            if replay_buffer.size() > MINIBATCH_SIZE:
+            if replay_buffer.size() > opt.agent_params.min_memory_size:
                 ''' Training process - DDPG'''
                 s_batch, g_batch, a_batch, r_batch, t_batch, s2_batch = replay_buffer.sample_batch(MINIBATCH_SIZE)
 
@@ -244,10 +239,7 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
                 a_outs = actor.predict(s_batch, g_batch)
                 grads = critic.action_gradients(s_batch, g_batch, a_outs)
 
-                # actor_t_loss, actor_preac_loss = actor.train(s_batch, g_batch, grads[0])
                 actor.train(s_batch, g_batch, grads[0])
-                actor_loss += 0 # actor_t_loss
-                actor_preactivation_loss += 0 # actor_preac_loss
 
                 # Update target networks
                 actor.update_target_network()
@@ -280,11 +272,9 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
                     training_vars[5]: ep_extra_goals,
                     training_vars[6]: np.array(filling_rates),
                     training_vars[7]: train_percentage_poured,
-                    training_vars[8]: actor_loss / float(j),
-                    training_vars[9]: actor_preactivation_loss / float(j),
-                    training_vars[10]: np.array(action_x_hist),
-                    training_vars[11]: np.array(action_y_hist),
-                    training_vars[12]: np.array(action_theta_hist)
+                    training_vars[8]: np.array(action_x_hist),
+                    training_vars[9]: np.array(action_y_hist),
+                    training_vars[10]: np.array(action_theta_hist)
                 })
                 writer.add_summary(summary_str, current_step)
                 writer.flush()
@@ -340,13 +330,24 @@ def train(sess, env, actor, critic, saver, global_step, step_op, replay_buffer):
         # Increase global_step
         sess.run(step_op)
 
+def denormalize_test_state(s):
+    state = []
+    state.append(get_denormalized(s[0], opt.env_params.min_x_dist, opt.env_params.max_x_dist))
+    state.append(get_denormalized(s[1], opt.env_params.min_y_dist, opt.env_params.max_y_dist))
+    state.append(get_denormalized(s[2], 0.0, 360.0))
+    state.append(s[3])
+    state.append(s[4])
+    state.append(s[5])
+    state.append(get_denormalized(s[6], 0.0, 1.0))
+    state.append(get_denormalized(s[7], 0.0, opt.env_params.max_volume))
+    state.append(get_denormalized(s[8], 0.0, 1.0))
+    return state
+
 def test(policy, env, test_goal, scene_name):
 
     policy.set_goal([test_goal, 0.0])
 
-    init_height = opt.test_height   # Not necessary right now (determines initial volume)
-
-    normalized_state, clean_state, info = env.reset(init_height)
+    normalized_state, clean_state, info = env.reset(test_scene = opt.test_scene)
     s = get_state_as_list(normalized_state)
 
     print('**************************************')
@@ -356,45 +357,42 @@ def test(policy, env, test_goal, scene_name):
     ep_reward = 0
     ep_collisions = 0
 
-    action_x = []
-    action_y = []
-    action_theta = []
-    collisions = []
+    hist_states = []
+    hist_action = []
+    hist_rewards = []
+    hist_collisions = []
 
-    for j in range(env.max_steps+1):
+    terminal = False
+    while not terminal:
         # Denormalize because policy class normalizes internally
         # Policy class normalizes internally in order to make it simple to test the model on real scenarios (no need to worry about normalizing)
         # If you change the order or the size of the state vector, make sure to adjust the following code accordingly.
-        state = []
-        state.append(get_denormalized(s[0], opt.env_params.min_x_dist, opt.env_params.max_x_dist))
-        state.append(get_denormalized(s[1], opt.env_params.min_y_dist, opt.env_params.max_y_dist))
-        state.append(get_denormalized(s[2], 0.0, 360.0))
-        state.append(s[3])
-        state.append(s[4])
-        state.append(s[5])              # get_denormalized(s[5], -opt.env_params.max_ang_disp, opt.env_params.max_ang_disp)
-        state.append(get_denormalized(s[6], 0.0, 1.0))
-        state.append(get_denormalized(s[7], 0.0, opt.env_params.max_volume))
-        state.append(get_denormalized(s[8], 0.0, 1.0))
+        state = denormalize_test_state(s)
 
         a = policy.get_output(state)
-        action_x.append(a[0])
-        action_y.append(a[1])
-        action_theta.append(a[2])
 
         normalized_next_state, r, terminal, _, collision, clean_state = env.step(a, policy.goal)
         s2 = get_state_as_list(normalized_next_state)
 
-        collisions.append(collision)
+        hist_states.append(state)
+        hist_action.append(a)
+        hist_rewards.append(r)
+        hist_collisions.append(collision)
 
         s = s2
         ep_reward += r
         ep_collisions += int(collision)
 
+    state = denormalize_test_state(s)
+    hist_states.append(state)
 
-        if terminal:
-            episode_spillage = clean_state['spilled_vol']
-            episode_filling = clean_state['fill_level']
-            break
+    episode_info = {'hist_states': hist_states,
+                    'hist_action': hist_action,
+                    'hist_rewards': hist_rewards,
+                    'hist_collisions': hist_collisions}
+
+    episode_spillage = clean_state['spilled_vol']
+    episode_filling = clean_state['fill_level']
 
     print('----------------------------------------------------')
     print('----------------------------------------------------')
@@ -404,6 +402,9 @@ def test(policy, env, test_goal, scene_name):
     print('Episode Poured Volume: ', episode_filling)
     print('Saving scene...')
     env.save_scene(os.getcwd()+opt.saved_scenes_dir+scene_name)
+
+    print('Saving episode information...')
+    pickle.dump(obj=episode_info ,file=open('./episode_infoX.p',mode='wb'))
     print('Completed')
 
 

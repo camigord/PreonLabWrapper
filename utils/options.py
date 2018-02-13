@@ -36,8 +36,8 @@ class EnvParams():          # Settings for simulation environment
         self.max_time         = 10.0              # Maximum length of an episode in seconds
         self.goal_threshold   = [0.1, 25.0]       # Max volume difference (in ml) for goal to be considered achieved
 
-        self.max_lin_disp     = 2.0               # Maximum linear displacement in cm/frame     (simulation runs at 5 frames/second by default)
-        self.max_ang_disp     = 10.0              # Maximum angular rotation in degrees/frame
+        self.max_lin_disp     = 1                 # Maximum linear displacement in cm/frame     (simulation runs at 5 frames/second by default)
+        self.max_ang_disp     = 5                 # Maximum angular rotation in degrees/frame
 
         self.min_x            = -12.0             # Range of possible positions
         self.max_x            = 12.0              # Moving outside this range will result in collision
@@ -46,7 +46,7 @@ class EnvParams():          # Settings for simulation environment
 
         self.max_volume       = 398.0             # Maximum initial volume in milliliters
 
-        self.frames_per_action = 1                # How many frames to run before selecting a new action
+        self.frames_per_action = 2                # How many frames to run before selecting a new action
 
         self.safety_boundary   = 0                # Safety boundary around destination cup to avoid collisions in real worls (in cm)
 
@@ -68,7 +68,8 @@ class Options():
     agent_params  = AgentParams()
     env_params = EnvParams()
 
-    test_height = 10.0
+    test_scene        = "./training_scenes/scene0_test.prscene"
+
     saved_scenes_dir = '/saved_scenes/'
     summary_dir = './results/tboard_ddpg'
     save_dir = './results/model_ddpg'

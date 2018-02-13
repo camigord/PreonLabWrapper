@@ -12,7 +12,7 @@ logging.debug('Starting Log')
 PreonScene interfaces our code with a PreonLab Scene. It allows us to interact with the scene by performing actions and it allows us to capture the current state of the scene.
 '''
 class PreonScene():
-    def __init__(self, args, source_height = 10):
+    def __init__(self, args, source_height = 10, test_scene=None):
         self.args = args
         self.min_x = args.min_x
         self.max_x = args.max_x
@@ -25,7 +25,10 @@ class PreonScene():
 
         # Loading the scene
         preonpy.show_progressbar = False            # This was required to fix some bug with preonpy back when we wrote the code
-        self.scene = preonpy.Scene(args.test_path)  # Load the Scene
+        if test_scene is not None:
+            self.scene = preonpy.Scene(test_scene)
+        else:
+            self.scene = preonpy.Scene(args.test_path)  # Load the Scene
 
         # Define the volume capacity of the destination cup in milliliters
         self.cup_capacity = 280.0                   # Capacity of orange cup model when using preonlab spacing = 0.01
