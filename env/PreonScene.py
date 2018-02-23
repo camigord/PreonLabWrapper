@@ -71,17 +71,15 @@ class PreonScene():
         # Get some values from the simulation
         self.init_particles = self.scene.get_statistic("Fluid Particles", self.scene.elapsed_time)
 
+        '''
         if self.init_particles != self.max_volume:
             logging.warning('Init particles = ' + str(self.init_particles))
+        '''
 
         self.cup1_size = np.round(np.array(self.sensor_cup1.__getitem__("scale"))*100,decimals=2)[[0,2]] # diameter and height in cm
         #self.cup2_size = np.round(np.array(self.cup2.__getitem__("scale"))*100,decimals=2)[[0,2]] # diameter and height in cm
         # NOTE: Using sensor around solid because mesh does not provide the scale.
         self.cup2_size = np.round(np.array(self.sensor_cup2.__getitem__("scale"))*100,decimals=2)[[0,2]] # diameter and height in cm
-
-        # NOTE: Adding a safety margin around cup 2 in order to prevent the real robot to get too close to Cup2
-        self.cup2_size[0] += self.safety_boundary * 2  # Add 2*safety_boundary to diameter which will create a safety_boundary margin to the left and right of Cup2
-        self.cup2_size[1] += self.safety_boundary  # Add safety_boundary to height which will create Xcm safety margin on top of Cup2
 
         self.update_stats()
 
@@ -102,7 +100,11 @@ class PreonScene():
         return self.cup1_pos[[0,2]], self.cup1_angles[1], self.cup2_pos[[0,2]], self.cup2_angles[1]
 
     def get_cups_dimensions(self):
-        return self.cup1_size, self.cup2_size
+        # NOTE: Adding a safety margin around cup 2 in order to prevent the real robot to get too close to Cup2
+        collision_size = self.cup2_size
+        collision_size[0] += self.safety_boundary * 2  # Add 2*safety_boundary to diameter which will create a safety_boundary margin to the left and right of Cup2
+        collision_size[1] += self.safety_boundary      # Add safety_boundary to height which will create Xcm safety margin on top of Cup2
+        return self.cup1_size, collision_size
 
     def get_info(self):
         return self.init_particles, self.remaining_particles, self.vol_cup1, self.cup_capacity
@@ -134,7 +136,7 @@ class PreonScene():
             dist_x += np.random.normal(0.0, self.args.noise_x)
             dist_y += np.random.normal(0.0, self.args.noise_y)
             theta_angle += np.random.normal(0.0, self.args.noise_theta)
-            fill_level += np.random.normal(0.0, self.args.noise_fill_level)
+            fill_level += max(0, np.random.normal(0.0, self.args.noise_fill_level))     # Avoid negative values due to noise
             theta_angle = theta_angle % 360.0
 
         # Normalizing

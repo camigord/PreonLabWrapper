@@ -28,6 +28,7 @@ parser.add_argument('--restore', action='store_true', help="Restores previous mo
 parser.add_argument('--testing', action='store_true', help="Runs a testing episode")
 parser.add_argument('--scene_name', help="Name of the scene to be generated in output folder")
 parser.add_argument('--goal', type=float, default=1.0, help="Target pouring volume [0.0,1.0]")
+parser.add_argument('--num_episodes', type=int, default=1, help="Number of episodes to test")
 args = parser.parse_args()
 
 # cluster specification
@@ -343,69 +344,90 @@ def denormalize_test_state(s):
     state.append(get_denormalized(s[8], 0.0, 1.0))
     return state
 
-def test(policy, env, test_goal, scene_name):
+def test(policy, env, test_goal, scene_name, num_test_episodes):
 
     policy.set_goal([test_goal, 0.0])
 
-    normalized_state, clean_state, info = env.reset(test_scene = opt.test_scene)
-    s = get_state_as_list(normalized_state)
+    results_testing = {'rewards': [],
+                       'collisions': [],
+                       'spillage': [],
+                       'fill_level': []}
 
-    print('**************************************')
-    print(info)
-    print('**************************************')
+    for i in range(num_test_episodes):
+        normalized_state, clean_state, info = env.reset(test_scene = opt.test_scene)
+        s = get_state_as_list(normalized_state)
 
-    ep_reward = 0
-    ep_collisions = 0
+        print('**************************************')
+        print(info)
+        print('**************************************')
 
-    hist_states = []
-    hist_action = []
-    hist_rewards = []
-    hist_collisions = []
+        ep_reward = 0
+        ep_collisions = 0
 
-    terminal = False
-    while not terminal:
-        # Denormalize because policy class normalizes internally
-        # Policy class normalizes internally in order to make it simple to test the model on real scenarios (no need to worry about normalizing)
-        # If you change the order or the size of the state vector, make sure to adjust the following code accordingly.
+        hist_states = []
+        hist_action = []
+        hist_rewards = []
+        hist_collisions = []
+
+        terminal = False
+        while not terminal:
+            # Denormalize because policy class normalizes internally
+            # Policy class normalizes internally in order to make it simple to test the model on real scenarios (no need to worry about normalizing)
+            # If you change the order or the size of the state vector, make sure to adjust the following code accordingly.
+            state = denormalize_test_state(s)
+
+            a = policy.get_output(state)
+
+            normalized_next_state, r, terminal, _, collision, clean_state = env.step(a, policy.goal)
+            s2 = get_state_as_list(normalized_next_state)
+
+            hist_states.append(state)
+            hist_action.append(a)
+            hist_rewards.append(r)
+            hist_collisions.append(collision)
+
+            s = s2
+            ep_reward += r
+            ep_collisions += int(collision)
+
         state = denormalize_test_state(s)
-
-        a = policy.get_output(state)
-
-        normalized_next_state, r, terminal, _, collision, clean_state = env.step(a, policy.goal)
-        s2 = get_state_as_list(normalized_next_state)
-
         hist_states.append(state)
-        hist_action.append(a)
-        hist_rewards.append(r)
-        hist_collisions.append(collision)
 
-        s = s2
-        ep_reward += r
-        ep_collisions += int(collision)
+        episode_info = {'hist_states': hist_states,
+                        'hist_action': hist_action,
+                        'hist_rewards': hist_rewards,
+                        'hist_collisions': hist_collisions}
 
-    state = denormalize_test_state(s)
-    hist_states.append(state)
+        episode_spillage = clean_state['spilled_vol']
+        episode_filling = clean_state['fill_level']
 
-    episode_info = {'hist_states': hist_states,
-                    'hist_action': hist_action,
-                    'hist_rewards': hist_rewards,
-                    'hist_collisions': hist_collisions}
+        print('----------------------------------------------------')
+        print('----------------------------------------------------')
+        print('Episode reward: ', ep_reward)
+        print('Number of collisions: ', ep_collisions)
+        print('Episode Spillage: ', episode_spillage)
+        print('Episode Poured Volume: ', episode_filling)
+        print('Saving scene...')
+        env.save_scene(os.getcwd()+opt.saved_scenes_dir+scene_name+str(i))
 
-    episode_spillage = clean_state['spilled_vol']
-    episode_filling = clean_state['fill_level']
+        results_testing['rewards'].append(ep_reward)
+        results_testing['collisions'].append(ep_collisions)
+        results_testing['spillage'].append(episode_spillage)
+        results_testing['fill_level'].append(episode_filling)
+
+        if i==0:
+            # Saving episode information only for the first test
+            print('Saving episode information...')
+            pickle.dump(obj=episode_info ,file=open('./episode_info.p',mode='wb'))
+            print('Completed')
 
     print('----------------------------------------------------')
     print('----------------------------------------------------')
-    print('Episode reward: ', ep_reward)
-    print('Number of collisions: ', ep_collisions)
-    print('Episode Spillage: ', episode_spillage)
-    print('Episode Poured Volume: ', episode_filling)
-    print('Saving scene...')
-    env.save_scene(os.getcwd()+opt.saved_scenes_dir+scene_name)
-
-    print('Saving episode information...')
-    pickle.dump(obj=episode_info ,file=open('./episode_infoX.p',mode='wb'))
-    print('Completed')
+    print(results_testing)
+    print('Average reward: ', np.mean(results_testing['rewards']))
+    print('Average # collisions: ', np.mean(results_testing['collisions']))
+    print('Average spillage: ', np.mean(results_testing['spillage']))
+    print('Average fill level: ', np.mean(results_testing['fill_level']))
 
 
 def main(_):
@@ -474,11 +496,10 @@ def main(_):
 
 
     else:           # When testing
-
         with tf.Session() as sess:
             policy = Policy(sess)
             env = Preon_env(opt.env_params)
-            test(policy, env, args.goal, args.scene_name)
+            test(policy, env, args.goal, args.scene_name, args.num_episodes)
 
 if __name__ == '__main__':
     tf.app.run()

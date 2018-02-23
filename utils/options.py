@@ -33,18 +33,19 @@ class EnvParams():          # Settings for simulation environment
         self.step_cost        = -0.5              # Reward when goal is not reached, but no collision happens
         self.collision_cost   = -1.0              # Reward when collision is detected
         self.goal_reward      = 0.0               # Reward when reaching the goal
-        self.max_time         = 10.0              # Maximum length of an episode in seconds
+        self.max_time         = 20.0              # Maximum length of an episode in seconds
         self.goal_threshold   = [0.1, 25.0]       # Max volume difference (in ml) for goal to be considered achieved
 
         self.max_lin_disp     = 1                 # Maximum linear displacement in cm/frame     (simulation runs at 5 frames/second by default)
-        self.max_ang_disp     = 5                 # Maximum angular rotation in degrees/frame
+        self.max_ang_disp     = 1                 # Maximum angular rotation in degrees/frame
 
+        # Operation range:
         self.min_x            = -12.0             # Range of possible positions
         self.max_x            = 12.0              # Moving outside this range will result in collision
         self.min_y            = -5.0
         self.max_y            = 20.0
 
-        self.max_volume       = 398.0             # Maximum initial volume in milliliters
+        self.max_volume       = 382.0             # Maximum initial volume in milliliters
 
         self.frames_per_action = 2                # How many frames to run before selecting a new action
 
@@ -58,18 +59,18 @@ class EnvParams():          # Settings for simulation environment
         self.noise_theta      = 3.0               # Measurement noise (std) in degrees
         self.noise_fill_level = 0.05              # Measurement noise (std) in fill_level % (equivalent to 5mm height error with current cup and settings)
 
-        # Normalizing values
+        # Normalizing values (these values change if operation range changes - min_x, min_y ... etc)
         self.min_x_dist       = -2.0              # Values used to normalize inputs into [-1,1] range. Represent expected range of measurements in cm
         self.max_x_dist       = 22.0              # Computed by analyzing initial position of cup2 and operation range of cup1 (min_x, max_x, min_y, max_y)
         self.min_y_dist       = -15.0
         self.max_y_dist       = 10.0
 
+
 class Options():
     agent_params  = AgentParams()
     env_params = EnvParams()
 
-    test_scene        = "./training_scenes/scene0_test.prscene"
-
+    test_scene        = "./training_scenes/scene0_realmodels.prscene"   # This is the scene used for testing (could be different than the one for training...)
     saved_scenes_dir = '/saved_scenes/'
     summary_dir = './results/tboard_ddpg'
     save_dir = './results/model_ddpg'
